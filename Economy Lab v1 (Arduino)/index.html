@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El Precio del Progreso — V1</title>
+<style>
+:root{--bg:#f3f1eb;--paper:#fffdf8;--ink:#202b38;--muted:#687585;--line:#e2ded4;--green:#2d8064;--green-soft:#e5f1eb;--blue:#3d6f9d;--blue-soft:#e8eff6;--orange:#b96c32;--orange-soft:#f8ede2;--red:#b94d4d;--shadow:0 12px 32px rgba(30,42,54,.08)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.shell{max-width:900px;margin:auto;padding:22px 16px 42px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:950;letter-spacing:.13em}
+.mark{width:34px;height:34px;border-radius:11px;background:var(--green);color:white;display:grid;place-items:center;font-size:17px}
+.tag{border:1px solid var(--line);border-radius:99px;padding:7px 11px;font-size:10px;color:var(--muted);background:#ffffff80}
+h1{font-size:clamp(31px,5.5vw,47px);line-height:1.02;letter-spacing:-.045em;margin:32px 0 9px;max-width:700px}
+.lead{font-size:13px;line-height:1.6;color:var(--muted);max-width:700px;margin:0}
+.progress{display:flex;gap:7px;margin:22px 0 17px}.progress span{height:5px;flex:1;border-radius:8px;background:#dcd8ce}.progress .on{background:var(--green)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:19px;padding:21px;box-shadow:var(--shadow)}
+.eyebrow{font-size:10px;font-weight:950;letter-spacing:.13em;color:var(--green);text-transform:uppercase}
+h2{font-size:21px;letter-spacing:-.025em;margin:8px 0}.copy{font-size:12px;line-height:1.6;color:var(--muted);margin:0}
+.scene{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center;background:#f5f3ed;border:1px solid var(--line);border-radius:15px;padding:16px;margin:18px 0}
+.scene strong{font-size:13px;display:block;margin-bottom:5px}.scene p{font-size:11px;line-height:1.5;color:var(--muted);margin:0}.city{width:68px;height:68px;border-radius:16px;background:#e7ede8;display:grid;place-items:center;font-size:39px}
+button{font:inherit;cursor:pointer}.primary,.secondary{border:0;border-radius:11px;padding:11px 15px;font-size:11px;font-weight:900}.primary{background:var(--green);color:white}.primary:disabled{opacity:.4;cursor:not-allowed}.secondary{background:#f0eee7;border:1px solid var(--line);color:var(--ink)}
+.actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:17px}
+.status{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:800;color:var(--muted)}
+.lamp{width:9px;height:9px;border-radius:50%;background:#b8b2a7}.lamp.connected{background:#2d9b68;box-shadow:0 0 0 4px #2d9b681c}.lamp.error{background:#c34c4c}
+.budget{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 15px;margin:16px 0;background:#f5f3ed;border:1px solid var(--line);border-radius:13px}
+.budget small{display:block;color:var(--muted);font-size:10px}.budget strong{font-size:19px}.coins{display:flex;gap:5px}.coin{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:#e5bd70;border:2px solid #c9953f;color:#66471a;font-size:10px;font-weight:950}.coin.used{background:#efede7;border:2px dashed #c9c3b7;color:#c9c3b7}
+.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-top:15px}
+.slot{border:1px solid var(--line);border-radius:15px;background:#fff;padding:15px;min-width:0;position:relative;overflow:hidden}
+.slot:before{content:"";position:absolute;left:0;top:0;right:0;height:4px;background:var(--orange)}
+.slot.redistribute:before{background:var(--blue)}.slot.support:before{background:var(--green)}
+.slot .emoji{font-size:25px}.slot h3{font-size:13px;margin:8px 0 4px}.slot p{font-size:10px;line-height:1.45;color:var(--muted);margin:0;min-height:43px}
+.slot-bottom{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:10px;margin-top:11px;font-size:10px;font-weight:850}
+.count{font-size:18px}
+.hardware{background:#f2f6f3;border:1px solid #d9e7de;border-radius:13px;padding:13px;margin:15px 0}
+.hardware-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.hardware strong{font-size:11px}.hardware p{font-size:10px;line-height:1.5;color:var(--muted);margin:7px 0 0}
+.sim{margin-top:13px;border-top:1px dashed #cfc9bd;padding-top:11px}
+.sim summary{font-size:10px;font-weight:850;color:var(--muted);cursor:pointer}
+.sim-buttons{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.sim-buttons button{font-size:9px;padding:8px 9px}
+.results{display:grid;gap:12px;margin-top:17px}
+.metricgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.metric{border:1px solid var(--line);background:#f5f3ed;border-radius:13px;padding:12px}.metric span{display:block;color:var(--muted);font-size:10px}.metric b{font-size:22px;display:block;margin-top:5px}
+.group{border:1px solid var(--line);border-radius:13px;padding:13px;background:#fff}
+.grouphead{display:flex;justify-content:space-between;gap:8px;align-items:center}.grouphead strong{font-size:12px}.delta{font-size:10px;font-weight:900;padding:5px 7px;border-radius:99px}.good{color:#216d4e;background:#e4f2e9}.bad{color:#a53f3f;background:#fae8e5}.neutral{color:#6a6d72;background:#efeee9}
+.barline{display:grid;grid-template-columns:45px 1fr 38px;gap:7px;align-items:center;margin-top:9px}.barline label{font-size:9px;color:var(--muted)}.track{height:10px;border-radius:20px;background:#eeeae2;overflow:hidden}.fill{height:100%;border-radius:20px;background:#b8b1a5}.fill.after{background:var(--green)}.fill.after.worse{background:var(--red)}.barline b{text-align:right;font-size:10px}
+.legend{display:flex;gap:13px;flex-wrap:wrap;color:var(--muted);font-size:9px;margin-top:10px}.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#b8b1a5;margin-right:4px}.legend i.after{background:var(--green)}
+.note{background:#f8f1e5;border:1px solid #ead8b8;color:#76552c;padding:11px 12px;border-radius:11px;font-size:9px;line-height:1.5;margin-top:14px}
+.foot{text-align:center;font-size:9px;line-height:1.5;color:#89919b;margin:16px auto 0;max-width:690px}
+.hidden{display:none!important}
+
+.header-actions{display:flex;align-items:center;gap:8px}
+.help-trigger{padding:8px 11px;font-size:10px}
+body.modal-open{overflow:hidden}
+.help-overlay{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:18px;background:rgba(27,38,48,.56);backdrop-filter:blur(4px)}
+.help-modal{width:min(100%,470px);background:var(--paper);border:1px solid var(--line);border-radius:21px;padding:22px;box-shadow:0 24px 80px rgba(15,25,35,.25)}
+.help-modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.help-kicker{font-size:10px;letter-spacing:.13em;text-transform:uppercase;font-weight:950;color:var(--green)}
+.help-modal h2{font-size:25px;margin:7px 0 6px}
+.help-close{width:32px;height:32px;flex:0 0 32px;border:1px solid var(--line);border-radius:50%;background:#f3f1eb;color:var(--ink);font-size:19px;line-height:1}
+.help-intro{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 17px}
+.help-step{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;padding:11px 0;border-top:1px solid var(--line)}
+.help-number{width:27px;height:27px;border-radius:9px;background:var(--green-soft);color:var(--green);display:grid;place-items:center;font-size:11px;font-weight:950}
+.help-step strong{display:block;font-size:12px;margin:1px 0 3px}
+.help-step p{font-size:10px;line-height:1.5;color:var(--muted);margin:0}
+.help-modal-foot{display:flex;justify-content:flex-end;margin-top:16px}
+@media(max-width:560px){.header-actions{gap:5px;flex-wrap:wrap;justify-content:flex-end}.tag{font-size:9px}.help-trigger{font-size:9px;padding:8px}.help-modal{padding:18px}}
+
+@media(max-width:650px){.shell{padding:16px 11px 32px}.card{padding:16px}.slots{grid-template-columns:1fr}.slot{display:grid;grid-template-columns:34px 1fr auto;gap:7px;align-items:center}.slot .emoji{grid-row:span 2}.slot h3{margin:0 0 3px}.slot p{min-height:0}.slot-bottom{border:0;margin:0;padding:0;display:block;text-align:right}.count{display:block}.scene{grid-template-columns:1fr auto}}
+</style>
+</head>
+<body>
+
+<div id="helpOverlay" class="help-overlay" role="presentation" onclick="if(event.target===this) closeHelp()">
+  <section class="help-modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle" aria-describedby="helpDescription">
+    <div class="help-modal-head">
+      <div>
+        <div class="help-kicker">El precio del progreso · V1</div>
+        <h2 id="helpTitle">¿Cómo se juega?</h2>
+      </div>
+      <button id="closeHelp" class="help-close" type="button" aria-label="Cerrar instrucciones" onclick="closeHelp()">×</button>
+    </div>
+    <p id="helpDescription" class="help-intro">Tienes 3 monedas para decidir cómo administrar los recursos de la ciudad.</p>
+    <div class="help-step"><span class="help-number">1</span><div><strong>Elige dónde poner tus monedas</strong><p>Reparte las tres entre crecimiento, redistribución y apoyo directo.</p></div></div>
+    <div class="help-step"><span class="help-number">2</span><div><strong>Usa las ranuras físicas</strong><p>Introduce cada moneda en una ranura. Arduino registra tu decisión. Si aún no está conectado, puedes probar los botones de simulación.</p></div></div>
+    <div class="help-step"><span class="help-number">3</span><div><strong>Descubre las consecuencias</strong><p>Al usar las tres monedas, revisa cómo cambia la pobreza en cada grupo social.</p></div></div>
+    <div class="help-modal-foot"><button class="primary" type="button" onclick="closeHelp()">Entendido, jugar</button></div>
+  </section>
+</div>
+
+<div class="shell">
+<header><div class="brand"><div class="mark">P</div> EL PRECIO DEL PROGRESO</div><div class="header-actions"><div class="tag">PROTOTIPO FÍSICO · V1</div><button class="secondary help-trigger" type="button" onclick="openHelp()">¿Cómo jugar?</button></div></header>
+<h1>¿Cómo ayudarías a esta ciudad?</h1>
+<p class="lead">Tienes tres monedas. Introdúcelas en las ranuras para decidir cómo actuar. Después observa quién se beneficia y quién podría quedar atrás.</p>
+<div class="progress"><span id="p1" class="on"></span><span id="p2"></span><span id="p3"></span></div>
+
+<section id="intro" class="card">
+ <div class="eyebrow">La situación</div><h2>La ciudad crece, pero no todos avanzan igual.</h2>
+ <p class="copy">Algunos hogares mejoran sus ingresos, mientras otros siguen en situación de pobreza. Tu tarea es decidir cómo utilizar un presupuesto limitado.</p>
+ <div class="scene"><div><strong>Tu misión</strong><p>Distribuye tres monedas entre crecimiento, redistribución y apoyo directo. Cada decisión tendrá consecuencias distintas.</p></div><div class="city">🏙️</div></div>
+ <div class="actions"><span class="copy">Una ronda · Tres monedas</span><button class="primary" onclick="startGame()">Comenzar →</button></div>
+</section>
+
+<section id="game" class="card hidden">
+ <div class="eyebrow">Ronda 1 · Distribuye el presupuesto</div><h2>Introduce las monedas en las ranuras</h2>
+ <p class="copy">Cada moneda que introduzcas activa un sensor. Puedes repartirlas como quieras, pero solo tienes tres.</p>
+ <div class="budget"><div><small>Monedas restantes</small><strong id="remaining">3 de 3</strong></div><div id="coinDisplay" class="coins"><span class="coin">1</span><span class="coin">2</span><span class="coin">3</span></div></div>
+ <div class="hardware">
+  <div class="hardware-head"><div class="status"><span class="lamp" id="lamp"></span><span id="hardwareStatus">Arduino no conectado</span></div><button class="secondary" id="connectBtn" onclick="connectArduino()">Conectar Arduino</button></div>
+  <p>Conecta el Arduino por USB. Cada ranura física tiene un microswitch: al caer una moneda, el switch envía la decisión a esta página.</p>
+ </div>
+ <div class="slots">
+  <article class="slot growth"><div class="emoji">📈</div><div><h3>Impulsar crecimiento</h3><p>Invertir para aumentar la actividad económica.</p></div><div class="slot-bottom"><span class="count" id="growthCount">0</span><span>monedas</span></div></article>
+  <article class="slot redistribute"><div class="emoji">⚖️</div><div><h3>Redistribuir</h3><p>Transferir recursos hacia hogares con menos ingresos.</p></div><div class="slot-bottom"><span class="count" id="redistributeCount">0</span><span>monedas</span></div></article>
+  <article class="slot support"><div class="emoji">🤝</div><div><h3>Apoyo directo</h3><p>Ayudar a hogares bajo la línea de pobreza.</p></div><div class="slot-bottom"><span class="count" id="supportCount">0</span><span>monedas</span></div></article>
+ </div>
+ <details class="sim">
+  <summary>Prueba de pantalla (si todavía no tienes el Arduino conectado)</summary>
+  <div class="sim-buttons"><button class="secondary" onclick="registerCoin('G')">Simular ranura crecimiento</button><button class="secondary" onclick="registerCoin('R')">Simular ranura redistribución</button><button class="secondary" onclick="registerCoin('A')">Simular ranura apoyo</button></div>
+ </details>
+ <div class="actions"><button class="secondary" onclick="undoCoin()">Deshacer última moneda</button><button class="primary" id="resultBtn" onclick="showResults()" disabled>Ver consecuencias →</button></div>
+ <p class="foot">Interacción física prevista: una moneda pasa por la ranura, acciona el microswitch y Arduino registra G, R o A por USB.</p>
+</section>
+
+<section id="results" class="card hidden">
+ <div class="eyebrow">Resultado de la decisión</div><h2 id="resultTitle">No todos ganan por igual</h2><p class="copy" id="resultCopy"></p>
+ <div class="results">
+  <div class="metricgrid">
+   <div class="metric"><span>Crecimiento del escenario</span><b id="growthMetric">—</b></div>
+   <div class="metric"><span>Gini del escenario</span><b id="giniMetric">—</b></div>
+  </div>
+  <div id="groups"></div>
+ </div>
+ <div class="legend"><span><i></i>Antes</span><span><i class="after"></i>Después mejora</span><span><i style="background:#b94d4d"></i>Después empeora</span></div>
+ <div class="actions"><button class="secondary" onclick="backToGame()">Cambiar decisiones</button><button class="primary" onclick="newGame()">Nueva partida</button></div>
+</section>
+<p class="foot">EL PRECIO DEL PROGRESO · V1: probar que la interacción física y las decisiones se entienden antes de refinar la experiencia.</p>
+</div>
+<script>
+
+function openHelp(){
+  const overlay=document.getElementById("helpOverlay");
+  overlay.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  document.getElementById("closeHelp").focus();
+}
+function closeHelp(){
+  document.getElementById("helpOverlay").classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+document.addEventListener("keydown",event=>{
+  if(event.key==="Escape" && !document.getElementById("helpOverlay").classList.contains("hidden")) closeHelp();
+});
+document.body.classList.add("modal-open");
+
+const TOTAL=3;
+const allocations={G:0,R:0,A:0};
+const history=[];
+let used=0,port=null,reader=null,keepReading=false;
+
+// Parámetros SINTÉTICOS de prototipado. No representan datos reales.
+const baseline=[
+ {key:"low",label:"Menores ingresos",poverty:55},
+ {key:"middle",label:"Ingresos medios",poverty:20},
+ {key:"high",label:"Mayores ingresos",poverty:4}
+];
+// Efecto por moneda, en puntos porcentuales de pobreza.
+// Crecimiento favorece relativamente a medios/altos en este escenario,
+// mientras que la pobreza de bajos ingresos puede aumentar.
+// Redistribución y apoyo focalizado reducen pobreza baja, con trade-offs
+// visibles en crecimiento/Gini.
+const effects={
+ G:{low:+1.8,middle:-1.0,high:-0.3,growth:+0.8,gini:+0.015},
+ R:{low:-2.5,middle:-0.5,high:0,growth:-0.25,gini:-0.020},
+ A:{low:-4.0,middle:0,high:0,growth:-0.10,gini:-0.010}
+};
+const labels={G:"Impulsar crecimiento",R:"Redistribuir",A:"Apoyo directo"};
+
+function show(id){["intro","game","results"].forEach(x=>document.getElementById(x).classList.toggle("hidden",x!==id))}
+function progress(n){[1,2,3].forEach(x=>document.getElementById("p"+x).classList.toggle("on",x<=n))}
+function startGame(){show("game");progress(2);updateGame()}
+function registerCoin(code){
+ if(!effects[code]||used>=TOTAL)return;
+ allocations[code]++;used++;history.push(code);updateGame();
+}
+function undoCoin(){
+ const code=history.pop();if(!code)return;
+ allocations[code]--;used--;updateGame();
+}
+function updateGame(){
+ const left=TOTAL-used;
+ document.getElementById("remaining").textContent=left+" de "+TOTAL;
+ document.getElementById("coinDisplay").innerHTML=Array.from({length:TOTAL},(_,i)=>`<span class="coin ${i>=left?"used":""}">${i+1}</span>`).join("");
+ document.getElementById("growthCount").textContent=allocations.G;
+ document.getElementById("redistributeCount").textContent=allocations.R;
+ document.getElementById("supportCount").textContent=allocations.A;
+ document.getElementById("resultBtn").disabled=left!==0;
+}
+function calculate(){
+ let growth=2.0,gini=.40;
+ const groups=baseline.map(g=>({...g,after:g.poverty}));
+ Object.entries(allocations).forEach(([code,n])=>{
+  const e=effects[code];growth+=n*e.growth;gini+=n*e.gini;
+  groups.forEach(g=>{g.after=Math.max(0,Math.min(100,g.after+n*e[g.key]))});
+ });
+ return {growth,gini,groups};
+}
+function showResults(){
+ if(used!==TOTAL)return;
+ const r=calculate();
+ document.getElementById("growthMetric").textContent=(r.growth>=0?"+":"")+r.growth.toFixed(2).replace(".",",")+"%";
+ document.getElementById("giniMetric").textContent=r.gini.toFixed(3).replace(".",",");
+ const low=r.groups[0],worsened=r.groups.filter(g=>g.after>g.poverty),improved=r.groups.filter(g=>g.after<g.poverty);
+ document.getElementById("resultTitle").textContent=worsened.length?"Las decisiones tuvieron costos y beneficios":"El escenario no cambió la pobreza de todos por igual";
+ document.getElementById("resultCopy").textContent=
+  "En menores ingresos, la pobreza pasó de "+low.poverty+"% a "+low.after.toFixed(1)+"%. "+
+  (worsened.length?"Al menos un grupo terminó con mayor pobreza que al inicio. ":"")+
+  (improved.length?"Otros grupos sí mejoraron.":"Ningún grupo redujo su pobreza en este escenario.");
+ document.getElementById("groups").innerHTML=r.groups.map(g=>{
+  const delta=g.after-g.poverty;
+  const cls=delta<0?"good":delta>0?"bad":"neutral";
+  const sign=delta>0?"+":"";
+  const afterClass=delta>0?"worse":"";
+  return `<article class="group">
+   <div class="grouphead"><strong>${g.label}</strong><span class="delta ${cls}">${sign}${delta.toFixed(1).replace(".",",")} pp</span></div>
+   <div class="barline"><label>Antes</label><div class="track"><div class="fill" style="width:${g.poverty}%"></div></div><b>${g.poverty}%</b></div>
+   <div class="barline"><label>Después</label><div class="track"><div class="fill after ${afterClass}" style="width:${g.after}%"></div></div><b>${g.after.toFixed(1).replace(".",",")}%</b></div>
+  </article>`;
+ }).join("");
+ show("results");progress(3);
+}
+function backToGame(){show("game");progress(2)}
+function newGame(){allocations.G=allocations.R=allocations.A=0;history.length=0;used=0;show("intro");progress(1);updateGame()}
+
+async function connectArduino(){
+ if(!("serial" in navigator)){
+  setStatus("Web Serial no disponible. Usa Chrome o Edge en HTTPS.", "error");return;
+ }
+ try{
+  port=await navigator.serial.requestPort();
+  await port.open({baudRate:9600});
+  setStatus("Arduino conectado · introduce monedas", "connected");
+  keepReading=true;
+  readSerial();
+ }catch(err){
+  setStatus("No se pudo conectar: "+err.message,"error");
+ }
+}
+function setStatus(text,state){
+ document.getElementById("hardwareStatus").textContent=text;
+ const lamp=document.getElementById("lamp");
+ lamp.className="lamp"+(state==="connected"?" connected":state==="error"?" error":"");
+}
+async function readSerial(){
+ const decoder=new TextDecoder();
+ let buffer="";
+ try{
+  while(port&&port.readable&&keepReading){
+   reader=port.readable.getReader();
+   try{
+    while(keepReading){
+     const {value,done}=await reader.read();
+     if(done)break;
+     buffer+=decoder.decode(value,{stream:true});
+     const lines=buffer.split(/\r?\n/);buffer=lines.pop();
+     for(const line of lines){
+      const code=line.trim().toUpperCase();
+      if(code==="G"||code==="R"||code==="A")registerCoin(code);
+     }
+    }
+   }finally{reader.releaseLock();reader=null}
+  }
+ }catch(err){setStatus("Conexión interrumpida: "+err.message,"error")}
+}
+updateGame();
+</script>
+</body>
+</html>
