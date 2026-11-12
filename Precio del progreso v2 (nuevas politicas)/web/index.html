@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#fafaf8">
+<title>El Precio del Progreso — V2</title>
+<style>
+:root{--bg:#fafaf8;--paper:#fff;--ink:#202522;--muted:#777e78;--line:#e7e9e5;--green:#315f4b;--green-soft:#edf3ef;--blue:#526c7e;--orange:#9b7651;--red:#b45c54;--shadow:none}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer}
+.shell{max-width:760px;margin:0 auto;padding:26px 24px 34px}
+header{display:flex;justify-content:space-between;align-items:center;gap:14px;padding-bottom:19px;border-bottom:1px solid var(--line)}
+.brand{font-size:11px;font-weight:850;letter-spacing:.12em}.brand-v{font-size:9px;color:var(--muted);font-weight:600;letter-spacing:.04em;margin-left:5px}
+.help-trigger,.connect-link,.undo-link{border:0;background:none;color:var(--muted);font-size:11px;padding:7px 0}.help-trigger:hover,.connect-link:hover,.undo-link:hover{color:var(--ink)}
+.progress{display:flex;gap:5px;margin:18px 0 0}.progress span{height:2px;flex:1;background:#e8eae6}.progress .on{background:var(--green)}
+.eyebrow{font-size:9px;font-weight:800;letter-spacing:.15em;color:var(--green);text-transform:uppercase}
+h1{font-size:clamp(42px,8vw,72px);line-height:.98;letter-spacing:-.065em;font-weight:650;margin:26px 0 17px;max-width:680px}h1 span{color:#9aa19a}
+.lead{font-size:16px;line-height:1.55;color:var(--muted);max-width:570px;margin:0}
+.intro-screen{padding:44px 0 25px}.intro-rule{width:44px;height:2px;background:var(--green);margin:30px 0 23px}.intro-prompt{max-width:510px}.prompt-label{font-size:9px;letter-spacing:.14em;font-weight:800;color:var(--muted)}.intro-prompt p{font-size:14px;line-height:1.65;margin:8px 0;color:#424a44;max-width:490px}
+.actions{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:28px}.intro-actions{max-width:580px}
+.copy{font-size:12px;line-height:1.6;color:var(--muted);margin:0}.primary{border:0;border-radius:5px;background:var(--green);color:white;padding:12px 17px;font-size:11px;font-weight:750;transition:background .15s ease}.primary:hover:not(:disabled){background:#244a39}.primary:disabled{opacity:.35;cursor:not-allowed}
+.game-screen,.results-screen{padding:34px 0 12px}.section-top{display:flex;justify-content:space-between;align-items:end;gap:15px}h2{font-size:clamp(25px,4vw,34px);line-height:1.12;letter-spacing:-.045em;font-weight:650;margin:8px 0 0}.round-label{font-size:9px;color:var(--muted);letter-spacing:.1em}.game-intro{margin-top:12px;max-width:530px}
+.budget{display:flex;justify-content:space-between;align-items:center;padding:15px 0;margin:22px 0 14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.budget small{display:block;color:var(--muted);font-size:10px;margin-bottom:4px}.budget strong{font-size:18px;font-weight:650;font-variant-numeric:tabular-nums}.coins{display:flex;gap:7px}.coin{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#d9bd80;border:1px solid #b99b60;color:#514126;font-size:9px;font-weight:800}.coin.used{background:transparent;border:1px dashed #c8ccc6;color:#c8ccc6}
+.hardware{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;margin:2px 0 17px;border-bottom:1px solid var(--line);flex-wrap:wrap}.hardware-head{display:flex;align-items:center;gap:10px}.hardware p{width:100%;font-size:10px;color:var(--muted);margin:0 0 0 18px;line-height:1.45}.status{display:flex;align-items:center;gap:7px;font-size:10px;color:var(--muted)}.lamp{width:7px;height:7px;border-radius:50%;background:#c3c8c2}.lamp.connected{background:#39845b;box-shadow:0 0 0 3px #39845b1c}.lamp.error{background:#c34c4c}
+.slots{display:grid;gap:0;border-top:1px solid var(--line)}.slot{display:grid;grid-template-columns:38px 1fr 65px;align-items:center;gap:12px;width:100%;text-align:left;padding:17px 10px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);border-radius:0;transition:background .15s ease}.slot:hover:not(:disabled){background:#f1f4f0}
+.slot{grid-template-columns:34px 1fr 24px;min-height:82px}
+.slot.selected{background:#edf3ef;box-shadow:inset 3px 0 0 var(--green)}
+.slot.selected .choice-no{color:var(--green);font-weight:800}
+.choice-mark{width:20px;height:20px;border:1px solid #cbd2cb;border-radius:50%;display:grid;place-items:center;color:transparent;font-size:11px;font-weight:800}
+.slot.selected .choice-mark{background:var(--green);border-color:var(--green);color:#fff}
+.slot:disabled{opacity:1;cursor:pointer}
+.policy-kicker{display:block;font-size:9px;color:var(--muted);letter-spacing:.09em;margin-top:6px}
+.policy-selected-note{font-size:10px;color:var(--green);margin-top:12px;min-height:15px}
+.slot:focus-visible{outline:2px solid #71927e;outline-offset:-2px}.slot:disabled{opacity:.4;cursor:not-allowed}.choice-no{font-size:10px;color:#9ba29b;font-variant-numeric:tabular-nums}.choice-main strong{display:block;font-size:14px;font-weight:650}.choice-main small{display:block;font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4}.choice-count{text-align:right}.choice-count b{display:block;font-size:22px;font-weight:550;font-variant-numeric:tabular-nums}.choice-count small{font-size:9px;color:var(--muted)}
+.game-actions{margin-top:20px}.undo-link{font-size:10px}.foot{text-align:center;font-size:9px;color:#a0a59f;letter-spacing:.08em;margin:35px auto 0}
+.results-screen>h2{margin-top:9px}.result-intro{max-width:580px;margin-top:12px}.metricgrid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin:25px 0 14px;padding:17px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.metric span{display:block;font-size:9px;letter-spacing:.12em;color:var(--muted);font-weight:750}.metric b{display:block;font-size:30px;letter-spacing:-.04em;font-weight:600;margin-top:7px;font-variant-numeric:tabular-nums}
+.servo-status{font-size:10px;line-height:1.5;color:var(--muted);padding:9px 0;margin:0 0 23px;border-bottom:1px solid var(--line)}.groups-heading{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}.groups-heading strong{font-size:12px;font-weight:700}.groups-heading span{font-size:9px;color:var(--muted);letter-spacing:.1em}
+#groups{display:grid;gap:0}.group{padding:14px 0;border-bottom:1px solid var(--line);background:transparent;border-radius:0;border-left:0;border-right:0;border-top:0}.grouphead{display:flex;justify-content:space-between;align-items:center;gap:8px}.grouphead strong{font-size:12px;font-weight:650}.delta{font-size:10px;font-weight:700;padding:0;border-radius:0;background:none!important}.good{color:#397957}.bad{color:#b14f49}.neutral{color:var(--muted)}.barline{display:grid;grid-template-columns:55px 1fr 43px;gap:9px;align-items:center;margin-top:9px}.barline label{font-size:9px;color:var(--muted)}.track{height:6px;border-radius:0;background:#eceeea;overflow:hidden}.fill{height:100%;border-radius:0;background:#bfc5bd}.fill.after{background:#4e8063}.fill.after.worse{background:#bd655d}.barline b{text-align:right;font-size:10px;font-weight:650;font-variant-numeric:tabular-nums}.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:9px;margin-top:15px}.legend i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#bfc5bd;margin-right:5px}.legend i.after{background:#4e8063}.legend i.worse-key{background:#bd655d}
+
+.board-note{display:inline-flex;align-items:center;gap:7px;margin:18px 0 22px;padding:7px 10px;border:1px solid var(--line);border-radius:4px;color:var(--muted);font-size:10px}
+.board-note i{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block}
+.compare-panel{margin-top:25px;padding:15px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.compare-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:5px}
+.compare-heading strong{font-size:12px}.compare-heading span{font-size:9px;color:var(--muted);letter-spacing:.1em}
+.compare-caption{font-size:10px;line-height:1.45;color:var(--muted);margin:0 0 10px}
+.compare-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.compare-row strong{display:block;font-size:11px;font-weight:650}
+.compare-row small{display:block;margin-top:3px;color:var(--muted);font-size:10px}
+.compare-row b{font-size:10px;white-space:nowrap}
+.compare-summary{font-size:11px;line-height:1.45;margin:11px 0 0;color:var(--ink)}
+.results-actions{margin-top:22px;align-items:center}
+.result-action-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.secondary{border:1px solid #dce2dc;border-radius:5px;background:transparent;color:var(--green);padding:11px 13px;font-size:10px;font-weight:700}
+.secondary:hover:not(:disabled){background:var(--green-soft)}
+.secondary:disabled{opacity:.65;cursor:default}
+.compare-hint{font-size:9px;color:var(--muted);margin:8px 0 0;line-height:1.4}
+.clear-compare{border:0;background:none;color:var(--muted);font-size:9px;padding:7px 0;text-decoration:underline;text-underline-offset:2px}
+@media(max-width:600px){.results-actions{align-items:stretch;flex-direction:column}.result-action-left{width:100%;justify-content:space-between}.results-actions>.primary{width:100%}.board-note{margin-top:15px}.compare-row{align-items:flex-start}}
+
+.hidden{display:none!important}
+body.modal-open{overflow:hidden}.help-overlay{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:18px;background:rgba(22,29,24,.38)}.help-modal{width:min(100%,430px);background:#fff;border:1px solid var(--line);border-radius:10px;padding:23px;box-shadow:0 18px 55px rgba(0,0,0,.13)}.help-modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.help-kicker{font-size:9px;letter-spacing:.14em;font-weight:800;color:var(--green)}.help-modal h2{font-size:25px;margin:8px 0}.help-close{width:30px;height:30px;border:1px solid var(--line);border-radius:50%;background:white;color:var(--ink);font-size:18px;line-height:1}.help-intro{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 15px}.help-step{display:grid;grid-template-columns:25px 1fr;gap:10px;align-items:start;padding:12px 0;border-top:1px solid var(--line)}.help-number{width:23px;height:23px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;font-size:10px;color:var(--green);font-weight:750}.help-step strong{display:block;font-size:11px;margin:2px 0 4px}.help-step p{font-size:10px;line-height:1.5;color:var(--muted);margin:0}.help-modal-foot{display:flex;justify-content:flex-end;margin-top:15px}
+@media(max-width:600px){.shell{padding:18px 17px 28px}.intro-screen{padding-top:38px}h1{font-size:clamp(40px,12vw,58px)}.section-top{align-items:start;flex-direction:column;gap:8px}.round-label{display:none}.slot{grid-template-columns:27px 1fr 48px;gap:8px;padding:15px 4px}.choice-main strong{font-size:13px}.choice-main small{font-size:10px}.metricgrid{gap:12px}.metric b{font-size:26px}.actions{gap:10px}.hardware p{margin-left:0}.game-actions{align-items:flex-start}.game-actions .primary{margin-left:auto}}
+</style>
+</head>
+<body>
+
+<div id="helpOverlay" class="help-overlay" role="presentation" onclick="if(event.target===this) closeHelp()">
+  <section class="help-modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle" aria-describedby="helpDescription">
+    <div class="help-modal-head">
+      <div>
+        <div class="help-kicker">EL PRECIO DEL PROGRESO</div>
+        <h2 id="helpTitle">Cómo jugar</h2>
+      </div>
+      <button id="closeHelp" class="help-close" type="button" aria-label="Cerrar instrucciones" onclick="closeHelp()">×</button>
+    </div>
+    <p id="helpDescription" class="help-intro">Elige una política económica y descubre sus efectos.</p>
+    <div class="help-step"><span class="help-number">1</span><div><strong>Elige una política</strong><p>Inversión, educación y empleo, o redistribución.</p></div></div>
+    <div class="help-step"><span class="help-number">2</span><div><strong>Mira el tablero</strong><p>Las agujas muestran el crecimiento y la desigualdad.</p></div></div>
+    <div class="help-step"><span class="help-number">3</span><div><strong>Descubre quién gana</strong><p>La página muestra cómo cambia la pobreza de cada grupo.</p></div></div>
+    <div class="help-modal-foot"><button class="primary" type="button" onclick="closeHelp()">Entendido</button></div>
+  </section>
+</div>
+
+<div class="shell">
+<header>
+  <div class="brand">EL PRECIO DEL PROGRESO <span class="brand-v">V2</span></div>
+  <button class="help-trigger" type="button" onclick="openHelp()">Cómo jugar <span aria-hidden="true">↗</span></button>
+</header>
+<div class="progress" aria-hidden="true"><span id="p1" class="on"></span><span id="p2"></span><span id="p3"></span></div>
+
+<section id="intro" class="intro-screen">
+  <div class="eyebrow">CRECIMIENTO · DESIGUALDAD · POBREZA</div>
+  <h1>El progreso<br><span>tiene un precio.</span></h1>
+  <p class="lead">¿Qué harías para mejorar la economía sin dejar a nadie atrás?</p>
+  <div class="intro-rule"></div>
+  <div class="intro-prompt"><span class="prompt-label">TU DESAFÍO</span><p>Elige una política económica. Observa qué pasa con el crecimiento, la desigualdad y la pobreza de distintos grupos.</p></div>
+  <div class="actions intro-actions"><span class="copy">Una decisión · Tres caminos</span><button class="primary" onclick="startGame()">Comenzar <span aria-hidden="true">→</span></button></div>
+</section>
+
+<section id="game" class="game-screen hidden">
+  <div class="section-top"><div><div class="eyebrow">01 / 03 · TU DECISIÓN</div><h2>¿Qué política elegirías?</h2></div><div class="round-label">ELIGE UNA</div></div>
+  <p class="copy game-intro">Cada camino cambia la economía de manera distinta. Elige uno para ver sus consecuencias.</p>
+
+  <div class="hardware">
+    <div class="hardware-head"><div class="status"><span class="lamp" id="lamp"></span><span id="hardwareStatus">Tablero no conectado</span></div><button class="connect-link" id="connectBtn" onclick="connectArduino()">Conectar Arduino</button></div>
+    <p>Al finalizar, las agujas mostrarán el crecimiento y la desigualdad.</p>
+  </div>
+
+  <div class="slots policy-options">
+    <button type="button" class="slot growth" id="investmentChoice" aria-pressed="false" onclick="selectPolicy('investment')">
+      <span class="choice-no">01</span>
+      <span class="choice-main"><strong>Impulsar la inversión</strong><small>Incentivos a empresas e infraestructura productiva.</small><span class="policy-kicker">Prioriza la actividad económica</span></span>
+      <span class="choice-mark" aria-hidden="true">✓</span>
+    </button>
+    <button type="button" class="slot redistribute" id="educationChoice" aria-pressed="false" onclick="selectPolicy('education')">
+      <span class="choice-no">02</span>
+      <span class="choice-main"><strong>Educación y empleo</strong><small>Capacitación y acceso a empleos mejor remunerados.</small><span class="policy-kicker">Prioriza las oportunidades</span></span>
+      <span class="choice-mark" aria-hidden="true">✓</span>
+    </button>
+    <button type="button" class="slot support" id="redistributionChoice" aria-pressed="false" onclick="selectPolicy('redistribution')">
+      <span class="choice-no">03</span>
+      <span class="choice-main"><strong>Redistribuir los ingresos</strong><small>Impuestos progresivos y ayudas a hogares de menores ingresos.</small><span class="policy-kicker">Prioriza la equidad</span></span>
+      <span class="choice-mark" aria-hidden="true">✓</span>
+    </button>
+  </div>
+  <div class="policy-selected-note" id="policySelectedNote" aria-live="polite">Selecciona una alternativa para continuar.</div>
+
+  <div class="actions game-actions"><button class="undo-link" onclick="clearPolicy()">↶ Cambiar selección</button><button class="primary" id="resultBtn" onclick="showResults()" disabled>Ver consecuencias <span aria-hidden="true">→</span></button></div>
+</section>
+
+<section id="results" class="results-screen hidden">
+  <div class="eyebrow">03 / 03 · RESULTADO</div>
+  <h2 id="resultTitle">¿Quién se beneficia del progreso?</h2>
+  <p class="copy result-intro" id="resultCopy"></p>
+
+  <div class="board-note" id="resultBoardNote"><i></i> Crecimiento y desigualdad se ven en el tablero físico.</div>
+
+  <div class="groups-heading"><strong>¿Cómo cambió la pobreza?</strong><span>ANTES / DESPUÉS</span></div>
+  <div id="groups"></div>
+  <div class="legend"><span><i></i>Antes</span><span><i class="after"></i>Después mejora</span><span><i class="worse-key"></i>Después empeora</span></div>
+
+  <div id="comparisonPanel" class="compare-panel hidden">
+    <div class="compare-heading"><strong>Comparación de escenarios</strong><span> A → B </span></div>
+    <p class="compare-caption" id="compareCaption">Pobreza al final de cada partida.</p>
+    <div id="comparisonRows"></div>
+    <p id="comparisonSummary" class="compare-summary"></p>
+    <button class="clear-compare" type="button" onclick="clearSavedScenario()">Borrar escenario A</button>
+  </div>
+
+  <div class="servo-status" id="servoResultStatus">Conecta Arduino para mover los indicadores físicos.</div>
+  <div class="actions results-actions">
+    <div class="result-action-left">
+      <button class="undo-link" onclick="backToGame()">← Cambiar decisiones</button>
+      <button class="secondary" id="saveScenarioBtn" onclick="saveCurrentScenario()">Guardar escenario A</button>
+    </div>
+    <button class="primary" onclick="newGame()">Nueva partida <span aria-hidden="true">↻</span></button>
+  </div>
+  <p id="compareHint" class="compare-hint">Guarda este resultado como A y juega otra vez para compararlo.</p>
+</section>
+
+<footer class="foot">EL PRECIO DEL PROGRESO · PROTOTIPO V1</footer>
+</div>
+<script>
+
+function openHelp(){
+  const overlay=document.getElementById("helpOverlay");
+  overlay.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  document.getElementById("closeHelp").focus();
+}
+function closeHelp(){
+  document.getElementById("helpOverlay").classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+document.addEventListener("keydown",event=>{
+  if(event.key==="Escape" && !document.getElementById("helpOverlay").classList.contains("hidden")) closeHelp();
+});
+document.body.classList.add("modal-open");
+
+let selectedPolicy=null,port=null,reader=null,keepReading=false;
+let currentResult=null, savedScenario=null, currentIsSaved=false;
+const SCENARIO_STORAGE_KEY="precio_progreso_escenario_A_politicas_v2";
+try {
+ const storedScenario=localStorage.getItem(SCENARIO_STORAGE_KEY);
+ if(storedScenario) savedScenario=JSON.parse(storedScenario);
+} catch(err) {
+ savedScenario=null;
+}
+
+// Escenario base de la simulación.
+const baseline=[
+ {key:"low",label:"Menores ingresos",poverty:55,growthSensitivity:1.5,giniSensitivity:0.8},
+ {key:"middle",label:"Ingresos medios",poverty:20,growthSensitivity:1.2,giniSensitivity:0.2},
+ {key:"high",label:"Mayores ingresos",poverty:4,growthSensitivity:0.4,giniSensitivity:0.0}
+];
+
+// Cambios del escenario frente a la línea base.
+// Son parámetros de diseño para probar la interacción; no son estimaciones causales.
+const policies={
+ investment:{
+  name:"Impulsar la inversión",
+  description:"Incentivos a empresas e infraestructura productiva.",
+  growthDelta:0.8,
+  giniDelta:0.015,
+  summary:"La economía creció, pero la pobreza de los hogares de menores ingresos no bajó."
+ },
+ education:{
+  name:"Educación y empleo",
+  description:"Capacitación y acceso a empleos mejor remunerados.",
+  growthDelta:0.5,
+  giniDelta:-0.010,
+  summary:"La pobreza bajó en los tres grupos, con mayor mejora entre los hogares de menores ingresos."
+ },
+ redistribution:{
+  name:"Redistribuir los ingresos",
+  description:"Impuestos progresivos y ayudas a hogares de menores ingresos.",
+  growthDelta:-0.1,
+  giniDelta:-0.025,
+  summary:"El crecimiento fue algo menor, pero la pobreza bajó sobre todo entre los hogares de menores ingresos."
+ }
+};
+
+function show(id){["intro","game","results"].forEach(x=>document.getElementById(x).classList.toggle("hidden",x!==id))}
+function progress(n){[1,2,3].forEach(x=>document.getElementById("p"+x).classList.toggle("on",x<=n))}
+function startGame(){
+ selectedPolicy=null;
+ updatePolicyChoices();
+ show("game");progress(2);
+}
+function selectPolicy(code){
+ if(!policies[code])return;
+ selectedPolicy=code;
+ currentIsSaved=false;
+ updatePolicyChoices();
+}
+function clearPolicy(){
+ selectedPolicy=null;
+ updatePolicyChoices();
+}
+function updatePolicyChoices(){
+ const ids={investment:"investmentChoice",education:"educationChoice",redistribution:"redistributionChoice"};
+ Object.entries(ids).forEach(([code,id])=>{
+  const button=document.getElementById(id);
+  const selected=selectedPolicy===code;
+  button.classList.toggle("selected",selected);
+  button.setAttribute("aria-pressed",selected?"true":"false");
+ });
+ document.getElementById("resultBtn").disabled=!selectedPolicy;
+ document.getElementById("policySelectedNote").textContent=
+  selectedPolicy ? "Seleccionaste: "+policies[selectedPolicy].name+"." : "Selecciona una alternativa para continuar.";
+}
+function calculate(){
+ if(!selectedPolicy)return null;
+ const policy=policies[selectedPolicy];
+ const growth=2.0+policy.growthDelta;
+ const gini=0.40+policy.giniDelta;
+
+ // Cambio en pobreza (pp) = efecto del crecimiento + efecto de la desigualdad.
+ // El segundo término mide cuánto afecta un cambio de 0,01 en el Gini.
+ const groups=baseline.map(group=>{
+  const growthEffect=-group.growthSensitivity*policy.growthDelta;
+  const inequalityEffect=group.giniSensitivity*(policy.giniDelta/0.01);
+  const delta=growthEffect+inequalityEffect;
+  return {
+   key:group.key,
+   label:group.label,
+   poverty:group.poverty,
+   after:Math.max(0,Math.min(100,group.poverty+delta)),
+   delta
+  };
+ });
+ return {
+  growth,
+  gini,
+  policyCode:selectedPolicy,
+  policyName:policy.name,
+  groups
+ };
+}
+function formatPercent(value){
+ return value.toFixed(1).replace(".",",")+"%";
+}
+function formatPP(value){
+ const rounded=Math.abs(value).toFixed(1).replace(".",",");
+ if(Math.abs(value)<0.05) return "Sin cambio";
+ return (value<0?"−":"+")+rounded+" pp";
+}
+function listNames(items){
+ if(items.length===1) return items[0];
+ if(items.length===2) return items[0]+" y "+items[1];
+ return items.slice(0,-1).join(", ")+" y "+items[items.length-1];
+}
+function renderResultGroups(r){
+ document.getElementById("resultTitle").textContent=r.policyName;
+ document.getElementById("resultCopy").textContent=policies[r.policyCode].summary;
+ document.getElementById("resultBoardNote").innerHTML="<i></i> "+r.policyName+" · Crecimiento y desigualdad en el tablero.";
+
+ document.getElementById("groups").innerHTML=r.groups.map(g=>{
+  const delta=g.after-g.poverty;
+  const cls=delta<-.05?"good":delta>.05?"bad":"neutral";
+  const sign=delta>0?"+":"";
+  const afterClass=delta>.05?"worse":"";
+  return `<article class="group">
+   <div class="grouphead"><strong>${g.label}</strong><span class="delta ${cls}">${sign}${delta.toFixed(1).replace(".",",")} pp</span></div>
+   <div class="barline"><label>Antes</label><div class="track"><div class="fill" style="width:${g.poverty}%"></div></div><b>${formatPercent(g.poverty)}</b></div>
+   <div class="barline"><label>Después</label><div class="track"><div class="fill after ${afterClass}" style="width:${g.after}%"></div></div><b>${formatPercent(g.after)}</b></div>
+  </article>`;
+ }).join("");
+}
+function renderScenarioComparison(){
+ const panel=document.getElementById("comparisonPanel");
+ const rows=document.getElementById("comparisonRows");
+ const summary=document.getElementById("comparisonSummary");
+ const caption=document.getElementById("compareCaption");
+ if(!savedScenario || !currentResult || currentIsSaved){
+  panel.classList.add("hidden");
+  return;
+ }
+ caption.textContent=(savedScenario.policyName||"Escenario A")+" → "+(currentResult.policyName||"Escenario B");
+ const comparisons=currentResult.groups.map(group=>{
+  const previous=savedScenario.groups.find(g=>g.key===group.key);
+  const delta=group.after-previous.after;
+  return {label:group.label,a:previous.after,b:group.after,delta};
+ });
+ rows.innerHTML=comparisons.map(item=>{
+  const cls=item.delta<-.05?"good":item.delta>.05?"bad":"neutral";
+  return `<div class="compare-row">
+   <div><strong>${item.label}</strong><small>${formatPercent(item.a)} → ${formatPercent(item.b)}</small></div>
+   <b class="${cls}">${formatPP(item.delta)}</b>
+  </div>`;
+ }).join("");
+ const improved=comparisons.filter(x=>x.delta<-.05);
+ const worsened=comparisons.filter(x=>x.delta>.05);
+ if(improved.length && worsened.length){
+  summary.textContent="En B, la pobreza bajó en "+listNames(improved.map(x=>x.label))+" y subió en "+listNames(worsened.map(x=>x.label))+".";
+ }else if(improved.length){
+  summary.textContent="En B, la pobreza bajó en "+listNames(improved.map(x=>x.label))+".";
+ }else if(worsened.length){
+  summary.textContent="En B, la pobreza subió en "+listNames(worsened.map(x=>x.label))+".";
+ }else{
+  summary.textContent="Los resultados de A y B fueron iguales.";
+ }
+ panel.classList.remove("hidden");
+}
+function updateScenarioControls(){
+ const button=document.getElementById("saveScenarioBtn");
+ const hint=document.getElementById("compareHint");
+ if(!savedScenario){
+  button.textContent="Guardar escenario A";
+  button.disabled=false;
+  hint.textContent="Guarda este resultado como A y juega otra vez para compararlo.";
+ }else if(currentIsSaved){
+  button.textContent="Escenario A guardado";
+  button.disabled=true;
+  hint.textContent="Escenario A guardado. Inicia otra partida para crear el escenario B.";
+ }else{
+  button.textContent="Guardar B como nuevo A";
+  button.disabled=false;
+  hint.textContent="A es la partida guardada. B es la partida actual.";
+ }
+}
+function saveCurrentScenario(){
+ if(!currentResult) return;
+ savedScenario=JSON.parse(JSON.stringify(currentResult));
+ currentIsSaved=true;
+ try{localStorage.setItem(SCENARIO_STORAGE_KEY,JSON.stringify(savedScenario));}catch(err){}
+ renderScenarioComparison();
+ updateScenarioControls();
+}
+function clearSavedScenario(){
+ savedScenario=null;
+ currentIsSaved=false;
+ try{localStorage.removeItem(SCENARIO_STORAGE_KEY);}catch(err){}
+ renderScenarioComparison();
+ updateScenarioControls();
+}
+async function showResults(){
+ if(!selectedPolicy)return;
+ const r=calculate();
+ currentResult=JSON.parse(JSON.stringify(r));
+ currentIsSaved=false;
+ await sendServoValues(r.growth,r.gini);
+ renderResultGroups(r);
+ renderScenarioComparison();
+ updateScenarioControls();
+ show("results");progress(3);
+}
+function backToGame(){currentIsSaved=false;show("game");progress(2);updatePolicyChoices()}
+async function newGame(){selectedPolicy=null;currentResult=null;currentIsSaved=false;show("intro");progress(1);updatePolicyChoices();await sendServoValues(2.0,0.40)}
+
+async function connectArduino(){
+ if(!("serial" in navigator)){
+  setStatus("Web Serial no disponible. Usa Chrome o Edge mediante HTTPS o localhost.", "error");
+  document.getElementById("servoResultStatus").textContent="Este navegador no permite conectar Arduino mediante Web Serial.";
+  return;
+ }
+ try{
+  port=await navigator.serial.requestPort();
+  await port.open({baudRate:9600});
+  setStatus("Arduino conectado · tablero listo", "connected");
+  document.getElementById("servoResultStatus").textContent="Arduino conectado. Las agujas se moverán al mostrar los resultados.";
+  keepReading=true;
+  readSerial();
+ }catch(err){
+  setStatus("No se pudo conectar: "+err.message,"error");
+  document.getElementById("servoResultStatus").textContent="No se pudo conectar Arduino: "+err.message;
+ }
+}
+function setStatus(text,state){
+ const status=document.getElementById("hardwareStatus");
+ if(status) status.textContent=text;
+ const lamp=document.getElementById("lamp");
+ if(lamp) lamp.className="lamp"+(state==="connected"?" connected":state==="error"?" error":"");
+}
+async function sendServoValues(growth,gini){
+ if(!port||!port.writable){
+  document.getElementById("servoResultStatus").textContent="Arduino no conectado: los resultados se muestran en pantalla, pero las agujas no se moverán.";
+  return;
+ }
+ let writer;
+ try{
+  writer=port.writable.getWriter();
+  const message=growth.toFixed(2)+","+gini.toFixed(3)+"\n";
+  await writer.write(new TextEncoder().encode(message));
+  document.getElementById("servoResultStatus").textContent="Resultados enviados a Arduino. Actualizando las agujas físicas…";
+ }catch(err){
+  document.getElementById("servoResultStatus").textContent="No se pudieron enviar los valores: "+err.message;
+  setStatus("Error al enviar datos","error");
+ }finally{if(writer) writer.releaseLock();}
+}
+async function readSerial(){
+ const decoder=new TextDecoder(); let buffer="";
+ try{
+  while(port&&port.readable&&keepReading){
+   reader=port.readable.getReader();
+   try{
+    while(keepReading){
+     const {value,done}=await reader.read(); if(done)break;
+     buffer+=decoder.decode(value,{stream:true});
+     const lines=buffer.split(/\r?\n/); buffer=lines.pop();
+     for(const line of lines){
+      const message=line.trim();
+      if(message.startsWith("READY")) setStatus("Arduino listo · 2 servomotores","connected");
+      else if(message.startsWith("OK")){
+       setStatus("Tablero actualizado","connected");
+       const resultStatus=document.getElementById("servoResultStatus");
+       if(resultStatus) resultStatus.textContent="Tablero actualizado.";
+      }
+     }
+    }
+   }finally{reader.releaseLock();reader=null;}
+  }
+ }catch(err){setStatus("Conexión interrumpida: "+err.message,"error");}
+}
+updatePolicyChoices();
+</script>
+</body>
+</html>

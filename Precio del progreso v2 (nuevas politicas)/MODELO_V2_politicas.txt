@@ -1,0 +1,44 @@
+EL PRECIO DEL PROGRESO — MODELO V2 (SUPUESTOS DE SIMULACIÓN)
+
+La V2 cambia el juego: el usuario elige UNA política por partida.
+
+Línea base:
+- Crecimiento: 2,0 %
+- Gini: 0,400
+- Pobreza: menores ingresos 55 %, ingresos medios 20 %, mayores ingresos 4 %
+
+Políticas:
+1. Impulsar la inversión:
+   - Crecimiento: +0,8 pp (2,8 %)
+   - Gini: +0,015 (0,415)
+2. Educación y empleo:
+   - Crecimiento: +0,5 pp (2,5 %)
+   - Gini: -0,010 (0,390)
+3. Redistribuir los ingresos:
+   - Crecimiento: -0,1 pp (1,9 %)
+   - Gini: -0,025 (0,375)
+
+Sensibilidades de pobreza:
+- Menores ingresos: crecimiento 1,5; Gini 0,8
+- Ingresos medios: crecimiento 1,2; Gini 0,2
+- Mayores ingresos: crecimiento 0,4; Gini 0,0
+
+Fórmula:
+Cambio de pobreza (pp) = - sensibilidad_crecimiento * cambio_crecimiento
+                         + sensibilidad_Gini * (cambio_Gini / 0,01)
+
+Resultados previstos:
+- Inversión: 55,0 %; 19,3 %; 3,7 %
+- Educación y empleo: 53,5 %; 19,2 %; 3,8 %
+- Redistribución: 53,2 %; 19,6 %; 4,0 %
+
+NOTA METODOLÓGICA:
+Todos los coeficientes y cambios de política son supuestos de diseño para una simulación
+interactiva inicial. No son coeficientes estimados, pronósticos ni resultados causales.
+Deben sustituirse o validarse con el modelo y los datos de la Entrega 1 antes de
+presentar los resultados como evidencia empírica.
+
+Hardware:
+- Crecimiento → D9
+- Gini → D10
+- La página sigue enviando crecimiento y Gini por USB Serial en el mismo formato.
