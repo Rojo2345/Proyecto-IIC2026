@@ -1,0 +1,2388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#000000" />
+  <title>Ciudad Prosperidad · Simulador 3D de Crecimiento vs. Desigualdad</title>
+  <meta name="description" content="Simulador económico interactivo en 3D: compara cómo el crecimiento económico y la desigualdad afectan a la pobreza absoluta de una ciudad." />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', 'Inter', 'system-ui', 'sans-serif'],
+            mono: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', 'Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --c-good: #6ee7b7;
+      --c-warn: #ffd60a;
+      --c-bad: #ff453a;
+      --c-low: #EEE9DA;
+      --c-mid: #BDCDD6;
+      --c-high: #6096B4;
+    }
+    html, body { background: #000; }
+    body { -webkit-font-smoothing: antialiased; letter-spacing: -0.011em; }
+    .font-mono { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+    body,
+    body .ambient,
+    body aside,
+    body .glass,
+    body .glass::before,
+    body .inset-well,
+    body .hairline,
+    body .range,
+    body #explainer,
+    body #explainer p,
+    body [class*="text-white"] {
+      transition:
+        background 900ms ease,
+        background-color 900ms ease,
+        color 900ms ease,
+        border-color 900ms ease,
+        box-shadow 900ms ease;
+    }
+
+    body.day-mode {
+      background: #fff;
+      color: #0f172a;
+    }
+    body.day-mode .ambient,
+    body.day-mode aside {
+      background: #fff;
+    }
+    body.day-mode .glass {
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+        inset 0 -1px 0 0 rgba(15, 23, 42, 0.08),
+        0 24px 48px -24px rgba(15, 23, 42, 0.2);
+    }
+    body.day-mode .glass::before {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(15, 23, 42, 0.08) 50%, rgba(255, 255, 255, 0.75));
+    }
+    body.day-mode [class*="text-white"] {
+      color: rgb(15 23 42 / 0.85) !important;
+    }
+    body.day-mode .inset-well {
+      background: rgba(15, 23, 42, 0.05);
+      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+    }
+    body.day-mode .hairline {
+      border-color: rgba(15, 23, 42, 0.12);
+    }
+    body.day-mode .range {
+      background: linear-gradient(to right, var(--accent, #0f172a) var(--fill, 50%), rgba(15, 23, 42, 0.14) var(--fill, 50%));
+    }
+    body.day-mode #explainer,
+    body.day-mode #explainer p {
+      color: #000 !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body,
+      body .ambient,
+      body aside,
+      body .glass,
+      body .glass::before,
+      body .inset-well,
+      body .hairline,
+      body .range,
+      body #explainer,
+      body #explainer p,
+      body [class*="text-white"] {
+        transition-duration: 0.01ms;
+      }
+    }
+
+    .ambient {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        radial-gradient(40% 35% at 15% 70%, rgba(10, 132, 255, 0.28), transparent 70%),
+        radial-gradient(35% 30% at 85% 85%, rgba(191, 90, 242, 0.22), transparent 70%),
+        radial-gradient(30% 25% at 60% 55%, rgba(48, 209, 88, 0.12), transparent 70%),
+        #000;
+    }
+
+    .glass {
+      position: relative;
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.035) 50%, rgba(255, 255, 255, 0.07) 100%);
+      -webkit-backdrop-filter: blur(30px) saturate(180%);
+      backdrop-filter: blur(30px) saturate(180%);
+      border-radius: 28px;
+      box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.22),
+        inset 0 -1px 0 0 rgba(255, 255, 255, 0.05),
+        0 24px 48px -24px rgba(0, 0, 0, 0.7);
+    }
+    .glass::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.04) 32%, rgba(255, 255, 255, 0.02) 68%, rgba(255, 255, 255, 0.22));
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+    .glass-pill { border-radius: 9999px; }
+    .glass-btn { transition: transform 0.2s ease, background 0.2s ease; }
+    .glass-btn:hover { background: linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08)); }
+    .glass-btn:active { transform: scale(0.96); }
+    .glass-btn:focus-visible, .seg:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.7); outline-offset: 2px; }
+    .inset-well {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 18px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    }
+    .hairline { border-color: rgba(255, 255, 255, 0.08); }
+
+    .t-good { color: var(--c-good); }
+    .t-warn { color: var(--c-warn); }
+    .t-bad { color: var(--c-bad); }
+    .tx-low { color: var(--c-low); }
+    .tx-mid { color: var(--c-mid); }
+    .tx-high { color: var(--c-high); }
+    .dot-low { background: var(--c-low); }
+    .dot-mid { background: var(--c-mid); }
+    .dot-high { background: var(--c-high); }
+    .district-tone-low {
+      --district-color: var(--c-low);
+      border-color: color-mix(in srgb, var(--district-color) 58%, white 42%);
+      background: color-mix(in srgb, var(--district-color) 14%, rgba(15, 23, 42, 0.78)) !important;
+    }
+    .district-tone-mid {
+      --district-color: var(--c-mid);
+      border-color: color-mix(in srgb, var(--district-color) 58%, white 42%);
+      background: color-mix(in srgb, var(--district-color) 14%, rgba(15, 23, 42, 0.78)) !important;
+    }
+    .district-tone-high {
+      --district-color: var(--c-high);
+      border-color: color-mix(in srgb, var(--district-color) 58%, white 42%);
+      background: color-mix(in srgb, var(--district-color) 14%, rgba(15, 23, 42, 0.78)) !important;
+    }
+    .district-tone-low > div > p:first-child,
+    .district-tone-mid > div > p:first-child,
+    .district-tone-high > div > p:first-child {
+      color: var(--district-color);
+    }
+    .district-tone-low [data-role="value"],
+    .district-tone-mid [data-role="value"],
+    .district-tone-high [data-role="value"] {
+      color: var(--district-color);
+    }
+    .district-tone-low > span:first-child,
+    .district-tone-mid > span:first-child,
+    .district-tone-high > span:first-child {
+      background: var(--district-color);
+    }
+    .is-active { color: var(--c-good); }
+
+    .range {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 9999px;
+      background: linear-gradient(to right, var(--accent, #fff) var(--fill, 50%), rgba(255, 255, 255, 0.14) var(--fill, 50%));
+      outline: none;
+      cursor: pointer;
+    }
+    .range:focus-visible { box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.18); }
+    .range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 9999px;
+      background: #fff;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+      transition: transform 0.15s ease;
+    }
+    .range:active::-webkit-slider-thumb { transform: scale(1.1); }
+    .range::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border: 0;
+      border-radius: 9999px;
+      background: #fff;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+    }
+
+    .panel-scroll::-webkit-scrollbar { width: 6px; }
+    .panel-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 8px; }
+    .panel-scroll::-webkit-scrollbar-track { background: transparent; }
+
+    .no-scrollbar { scrollbar-width: none; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+
+    .district-label {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -100%);
+      pointer-events: none;
+      white-space: nowrap;
+      will-change: transform;
+    }
+
+    .fade-in { animation: fadeIn 0.35s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    body.day-mode #intro, body.day-mode #reflex { background: rgba(255, 255, 255, 0.97) !important; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .fade-in { animation: none; }
+      .glass-btn, .range::-webkit-slider-thumb { transition: none; }
+    }
+  </style>
+</head>
+
+<body class="font-sans text-white lg:h-screen lg:overflow-hidden">
+  <div class="ambient" aria-hidden="true"></div>
+  <div id="intro" class="fixed inset-0 z-50 bg-black/95 overflow-y-auto" role="dialog" aria-label="Presentación">
+    <div class="mx-auto max-w-3xl min-h-full flex flex-col px-5 py-8 sm:py-12">
+      <div class="flex items-center justify-between text-[12px] text-white/50">
+        <span id="intro-count" class="font-mono"></span>
+        <button id="intro-skip" type="button" class="glass glass-pill glass-btn px-4 py-1.5 text-white/80">Saltar a la simulación</button>
+      </div>
+      <div id="intro-body" class="flex-1 py-8"></div>
+      <div class="flex items-center justify-between">
+        <button id="intro-prev" type="button" class="glass glass-pill glass-btn px-5 py-2 text-[14px]">Anterior</button>
+        <div id="intro-dots" class="flex gap-2"></div>
+        <button id="intro-next" type="button" class="glass glass-pill glass-btn px-5 py-2 text-[14px] font-semibold"></button>
+      </div>
+    </div>
+  </div>
+  <div id="reflex" class="fixed inset-0 z-50 bg-black/95 overflow-y-auto" style="display:none" role="dialog" aria-label="Reflexión filosófica">
+    <article class="mx-auto max-w-3xl px-5 py-10 sm:py-14">
+      <div class="flex items-center justify-between text-[12px] text-white/50">
+        <span>Reflexión del autor</span>
+        <button id="reflex-close" type="button" class="glass glass-pill glass-btn px-4 py-1.5 text-white/80">Volver a la simulación</button>
+      </div>
+      <h2 class="mt-8 text-3xl sm:text-4xl font-semibold tracking-tight text-balance leading-[1.08]">La desigualdad como resultado de la libertad</h2>
+      <p class="mt-3 text-[15px] text-white/50">Una reflexión filosófico-económica</p>
+
+      <section class="mt-10">
+        <h3 class="text-xl font-semibold text-white">1. La naturaleza de la diversidad humana y la libertad individual</h3>
+        <p class="mt-3 text-[15px] text-white/70 leading-relaxed text-pretty">La desigualdad no constituye, en sí misma, una falla del sistema ni un problema microeconómico que deba ser corregido: es el resultado natural e inevitable de la diversidad humana. Los individuos poseen de manera innata distintas preferencias, habilidades, prioridades, propensiones al riesgo y objetivos de vida.</p>
+        <p class="mt-3 text-[15px] text-white/70 leading-relaxed text-pretty">En una sociedad libre, donde las interacciones se basan en intercambios voluntarios, estas diferencias individuales generan, por definición, resultados desiguales en el plano material. Si un individuo de un entorno vulnerable emprende, asume riesgos e innova hasta alcanzar el éxito económico, es plenamente legítimo que use los frutos de su trabajo para dar la mejor educación posible a sus hijos. Del mismo modo, quien posee conocimiento debe poder fundar un proyecto educativo de manera autónoma. Elegir la educación de la propia familia no es un privilegio concedido por el Estado, sino un derecho inherente a la libertad individual. La educación es solo uno de muchos casos donde se evidencia lo inmoral del igualitarismo forzado: el mismo principio vale para la salud, la vivienda y cualquier otro ámbito en el que se pretenda igualar los resultados por la fuerza.</p>
+      </section>
+
+      <section class="mt-10">
+        <h3 class="text-xl font-semibold text-white">2. La trampa de la centralización y la erosión de los derechos</h3>
+        <p class="mt-3 text-[15px] text-white/70 leading-relaxed text-pretty">La pretensión de corregir estas brechas bajo el pretexto de la «justicia redistributiva» conduce a la centralización de los servicios básicos. Cuando la disparidad en el acceso a bienes como la educación o la salud se percibe como una injusticia que puede erradicarse mediante la coacción, la solución estatal suele ser la monopolización del servicio.</p>
+        <p class="mt-3 text-[15px] text-white/70 leading-relaxed text-pretty">Así se abre una pendiente resbaladiza: si el Estado asume el control total de la educación y la salud para igualar los resultados, bajo esa misma premisa moral el paso siguiente sería centralizar la vivienda, la vestimenta y la alimentación, bienes aún más básicos que la salud y la educación, entre muchos otros. Al sustituir la libre elección por la planificación centralizada, la sociedad transita progresivamente de la libertad hacia un régimen autoritario donde el individuo pierde el dominio sobre las decisiones más elementales de su vida.</p>
+      </section>
+
+      <section class="mt-10">
+        <h3 class="text-xl font-semibold text-white">3. La quiebra de incentivos y el fracaso del cálculo económico</h3>
+        <p class="mt-3 text-[15px] text-white/70 leading-relaxed text-pretty">Más allá del costo ético sobre la libertad individual, la planificación estatal enfrenta un problema de eficiencia difícil de superar:</p>
+        <ul class="mt-4 grid gap-3">
+          <li class="glass p-5"><p class="text-[15px] font-semibold text-white">Pérdida del sistema de precios y de la competencia</p><p class="mt-2 text-[14px] text-white/65 leading-relaxed">Al margen del juego entre la oferta y la demanda, el Estado carece de las señales (precios y beneficios) necesarias para asignar recursos con eficiencia y evaluar la calidad real de las prestaciones.</p></li>
+          <li class="glass p-5"><p class="text-[15px] font-semibold text-white">Abolición de incentivos</p><p class="mt-2 text-[14px] text-white/65 leading-relaxed">Sin la amenaza de la quiebra frente a competidores ni la recompensa del mérito para los trabajadores, los administradores estatales operan con salarios fijos y presupuestos garantizados. Se debilitan los incentivos para innovar, producir con eficiencia y mejorar de forma continua, y los servicios tienden a ser de menor calidad para toda la población.</p></li>
+          <li class="glass p-5"><p class="text-[15px] font-semibold text-white">Inviabilidad fiscal</p><p class="mt-2 text-[14px] text-white/65 leading-relaxed">Garantizar el consumo integral de la población mediante el gasto público exige niveles extraordinarios de impuestos y endeudamiento. La crisis del Estado del bienestar en varias economías europeas, con déficits fiscales estructurales, deudas soberanas elevadas y alzas en la edad de jubilación, muestra los límites de la redistribución masiva en el largo plazo.</p></li>
+        </ul>
+      </section>
+
+      <section class="mt-10">
+        <h3 class="text-xl font-semibold text-white">4. Conclusión: el bienestar real frente a la obsesión igualitaria</h3>
+        <p class="mt-3 text-[15px] text-white/70 leading-relaxed text-pretty">El bienestar de una nación no se mide por la brecha relativa entre el decil de mayores ingresos y el de menores ingresos. Una métrica centrada en reducir el Gini desvía la atención de lo verdaderamente crucial: erradicar la pobreza absoluta y ofrecer oportunidades reales de progreso.</p>
+        <p class="mt-3 text-[15px] text-white/70 leading-relaxed text-pretty">Someter el progreso económico al mandato del igualitarismo responde con frecuencia a premisas morales cuestionables, que castigan el éxito y la productividad. Como advertía Milton Friedman:</p>
+        <blockquote class="mt-5 border-l-2 border-emerald-300/60 pl-5 text-lg italic text-white/85 leading-snug">«Una sociedad que prioriza la igualdad sobre la libertad terminará sin ninguna de las dos.»</blockquote>
+        <p class="mt-5 text-[15px] text-white/70 leading-relaxed text-pretty">El desarrollo próspero y ético de una sociedad no se edifica expropiando los frutos del trabajo de los sectores más productivos para financiar transferencias estatales, sino garantizando un marco institucional donde cada persona sea soberana y libre de llevar adelante su propio proyecto de vida.</p>
+      </section>
+
+      <div class="mt-12 flex justify-center">
+        <button id="reflex-close-2" type="button" class="glass glass-pill glass-btn px-6 py-2.5 text-[14px] font-semibold">Volver a la simulación</button>
+      </div>
+    </article>
+  </div>
+
+  <div class="flex flex-col lg:flex-row lg:h-screen">
+
+    <!-- ================= 3D AREA ================= -->
+    <main class="relative flex-1 h-[62vh] lg:h-screen min-h-[380px] overflow-hidden bg-black" aria-label="Visor 3D de la ciudad">
+      <div id="scene" class="absolute inset-0"></div>
+      <div id="labels" class="absolute inset-0 pointer-events-none" aria-hidden="true"></div>
+
+      <header class="absolute top-0 inset-x-0 p-3 sm:p-4 flex items-start justify-between gap-3 pointer-events-none">
+        <div class="glass pointer-events-auto px-5 py-3 max-w-xl">
+          <p class="text-[11px] font-medium text-white/60">Ciudad Prosperidad · Año <span id="hud-year" class="font-mono text-white/85">25</span></p>
+          <p class="text-base sm:text-lg font-semibold tracking-tight leading-snug">
+            <span id="hud-gdp" class="font-mono">—</span>
+            <span class="text-white/35 font-normal mx-1">·</span>
+            <span class="text-sm font-medium text-white/60">Pobreza</span>
+            <span id="hud-poverty" class="font-mono font-semibold t-bad">—</span>
+            <span class="text-white/35 font-normal mx-1">·</span>
+            <span class="text-sm font-medium text-white/60">Clase baja</span>
+            <span id="hud-low" class="font-mono font-semibold tx-low">—</span>
+          </p>
+        </div>
+
+        <div class="glass glass-pill pointer-events-auto flex gap-1 p-1" role="toolbar" aria-label="Controles de la vista">
+          <button id="btn-reflex" type="button" class="glass-btn h-9 px-3 flex items-center gap-2 rounded-full text-[13px] font-medium text-white/90" aria-label="Abrir la reflexión filosófica">
+            <i data-lucide="book-open" class="w-[18px] h-[18px]"></i><span class="hidden sm:inline">Reflexión filosófica</span>
+          </button>
+          <button id="btn-night" type="button" class="glass-btn h-9 w-9 grid place-items-center rounded-full text-white/85" aria-label="Cambiar a vista diurna" aria-pressed="true">
+            <i data-lucide="sun" class="w-[18px] h-[18px]"></i>
+          </button>
+          <button id="btn-intro" type="button" class="glass-btn h-9 w-9 grid place-items-center rounded-full text-white/85" aria-label="Ver la presentación">
+            <i data-lucide="presentation" class="w-[18px] h-[18px]"></i>
+          </button>
+          <button id="btn-rotate" type="button" class="glass-btn h-9 w-9 grid place-items-center rounded-full text-white/85" aria-label="Activar rotación automática" aria-pressed="false">
+            <i data-lucide="rotate-3d" class="w-[18px] h-[18px]"></i>
+          </button>
+          <button id="btn-reset" type="button" class="glass-btn h-9 w-9 grid place-items-center rounded-full text-white/85" aria-label="Restablecer cámara">
+            <i data-lucide="scan" class="w-[18px] h-[18px]"></i>
+          </button>
+          <button id="btn-sound" type="button" class="glass-btn h-9 w-9 grid place-items-center rounded-full text-white/85" aria-label="Activar sonido ambiente" aria-pressed="false">
+            <i data-lucide="volume-2" class="w-[18px] h-[18px]"></i>
+          </button>
+        </div>
+      </header>
+
+      <p class="glass glass-pill absolute bottom-3 left-1/2 -translate-x-1/2 text-[11px] text-white/75 px-4 py-2 pointer-events-none whitespace-nowrap">
+        <span class="hidden sm:inline">Arrastra para rotar · Rueda para zoom · Clic derecho para desplazar</span>
+        <span class="sm:hidden">Arrastra para rotar · Pellizca para zoom</span>
+      </p>
+
+      <div id="loading" class="absolute inset-0 grid place-items-center bg-black text-white/60 text-sm transition-opacity duration-500">
+        <div class="flex items-center gap-3">
+          <span class="h-2.5 w-2.5 rounded-full bg-white/80 animate-pulse"></span>
+          Construyendo la ciudad…
+        </div>
+      </div>
+    </main>
+
+    <!-- ================= DASHBOARD ================= -->
+    <aside class="panel-scroll w-full lg:w-[440px] xl:w-[480px] lg:h-screen lg:overflow-y-auto" aria-label="Panel de control y métricas">
+      <div class="mx-auto max-w-5xl p-4 sm:p-6 lg:p-4 grid gap-4 md:grid-cols-2 lg:grid-cols-1">
+
+        <section class="md:col-span-2 lg:col-span-1 px-2 pt-4 pb-1">
+          <h1 class="text-3xl sm:text-4xl font-semibold tracking-tight text-balance leading-[1.05]">Crecimiento vs. Desigualdad</h1>
+          <p class="mt-3 text-[15px] text-white/60 leading-relaxed text-pretty max-w-2xl">
+            El enemigo no es la desigualdad, sino la <span class="text-white">pobreza absoluta</span>. Un pastel que crece rápido puede dar más a los pobres que uno pequeño repartido a partes iguales.
+          </p>
+
+          <div class="mt-5 -mx-2 px-2 py-1 flex gap-2 overflow-x-auto no-scrollbar" id="presets" role="group" aria-label="Escenarios rápidos">
+            <button type="button" data-g="2.5" data-gini="0.25" data-t="25" class="preset glass glass-pill glass-btn shrink-0 flex items-center gap-2 px-4 py-2 text-[13px] font-medium" title="+2,5% potencial · Gini 0,25">
+              <i data-lucide="scale" class="w-4 h-4 text-white/60"></i>Igualdad en la miseria
+            </button>
+            <button type="button" data-g="5.5" data-gini="0.50" data-t="25" class="preset glass glass-pill glass-btn shrink-0 flex items-center gap-2 px-4 py-2 text-[13px] font-medium" title="+5,5% · Gini 0,50">
+              <i data-lucide="rocket" class="w-4 h-4 text-white/60"></i>Crecimiento desigual
+            </button>
+          </div>
+        </section>
+
+        <section aria-labelledby="input-title" class="glass p-5 flex flex-col gap-3">
+          <div class="flex items-center justify-between gap-3">
+            <h2 id="input-title" class="text-[13px] font-medium text-white/50">Entrada de movimiento</h2>
+            <span id="sensor-connection-status" class="text-[11px] font-medium text-white/50">Control manual activo</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2" role="group" aria-label="Fuente de los parámetros">
+            <button id="mode-manual" type="button" class="glass glass-pill glass-btn px-4 py-2 text-[13px] font-medium" aria-pressed="true">Manual</button>
+            <button id="mode-sensor" type="button" class="glass glass-pill glass-btn px-4 py-2 text-[13px] font-medium" aria-pressed="false">Celular Android</button>
+          </div>
+          <p id="sensor-mode-help" class="text-[12px] text-white/50 leading-relaxed">Usa los controles manuales para modificar crecimiento y desigualdad.</p>
+          <a href="/sensor.html" target="_blank" rel="noopener" class="glass glass-pill glass-btn inline-flex items-center justify-center gap-2 px-4 py-2.5 text-[13px] font-medium text-white/85">
+            <i data-lucide="smartphone" class="w-4 h-4"></i> Abrir página del sensor
+          </a>
+          <p class="text-[11px] text-white/35">Abre este enlace desde el Android usando la misma dirección HTTPS que utiliza el computador. Después activa el sensor y calibra la posición central.</p>
+        </section>
+
+        <section aria-labelledby="controls-title" class="glass p-6 flex flex-col gap-6">
+          <h2 id="controls-title" class="text-[13px] font-medium text-white/50">Parámetros</h2>
+
+          <div>
+            <div class="flex items-baseline justify-between mb-3">
+              <label for="growth" class="text-[15px] text-white/85">Crecimiento potencial</label>
+              <output id="growth-out" for="growth" class="font-mono text-[15px] font-semibold t-good">+9,0%</output>
+            </div>
+            <input id="growth" class="range" type="range" min="-5" max="8" step="0.5" value="7" style="--accent: var(--c-good)" />
+            <div class="flex justify-between text-[11px] text-white/35 mt-2 font-mono"><span>−5%</span><span>+8% (máx. sostenido)</span></div>
+          </div>
+
+          <div>
+            <div class="flex items-baseline justify-between mb-3">
+              <label for="gini" class="text-[15px] text-white/85">Desigualdad (Gini)</label>
+              <output id="gini-out" for="gini" class="font-mono text-[15px] font-semibold t-bad">0,62</output>
+            </div>
+            <input id="gini" class="range" type="range" min="0.25" max="0.59" step="0.01" value="0.55" style="--accent: var(--c-bad)" />
+            <div class="flex justify-between text-[11px] text-white/35 mt-2"><span>0,25 Baja</span><span>0,59 Alta (Namibia)</span></div>
+            <p id="coupling-note" class="mt-2 text-[12px] text-white/50 leading-snug">—</p>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <label for="years" class="text-[15px] text-white/85">Tiempo</label>
+              <div class="flex items-center gap-3">
+                <output id="years-out" for="years" class="font-mono text-[15px] font-semibold text-white">25 años</output>
+                <button id="btn-play" type="button" class="glass glass-pill glass-btn h-8 w-8 grid place-items-center text-white" aria-label="Reproducir la evolución año a año">
+                  <i data-lucide="play" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+            <input id="years" class="range" type="range" min="0" max="40" step="1" value="25" style="--accent: #8e8e93" />
+            <div class="flex justify-between text-[11px] text-white/35 mt-2 font-mono"><span>0</span><span>40 años</span></div>
+            <div class="mt-4 flex items-center justify-between">
+              <label for="years-end" class="text-[13px] text-white/60">Reproducir hasta el año</label>
+              <output id="years-end-out" for="years-end" class="font-mono text-[13px] font-semibold text-white">40</output>
+            </div>
+            <input id="years-end" class="range mt-2" type="range" min="0" max="40" step="1" value="40" style="--accent: #8e8e93" />
+            <p class="text-[11px] text-white/35 mt-2">La animación parte del año marcado en el slider de tiempo.</p>
+          </div>
+
+        </section>
+
+        <section aria-labelledby="metrics-title" class="glass p-6 flex flex-col">
+          <h2 id="metrics-title" class="text-[13px] font-medium text-white/50">En tiempo real</h2>
+
+          <div class="mt-4 grid grid-cols-2 gap-6">
+            <div>
+              <p class="text-[12px] text-white/50">PIB de la ciudad</p>
+              <p id="m-gdp" class="mt-1 font-mono text-[28px] leading-none font-semibold tracking-tight">—</p>
+              <p id="m-gdp-sub" class="mt-2 text-[12px] t-good">—</p>
+            </div>
+            <div id="m-poverty-card">
+              <p class="text-[12px] text-white/50">Pobreza absoluta</p>
+              <p id="m-poverty" class="mt-1 font-mono text-[28px] leading-none font-semibold tracking-tight t-bad">—</p>
+              <div class="mt-3 h-1 rounded-full bg-white/10 overflow-hidden" aria-hidden="true">
+                <div id="m-poverty-bar" class="h-full rounded-full transition-all duration-300" style="width:0%; background: var(--c-bad)"></div>
+              </div>
+              <p id="m-poverty-sub" class="mt-2 text-[12px] text-white/50">—</p>
+            </div>
+          </div>
+
+          <ul class="mt-6 border-t hairline divide-y divide-white/[0.06]">
+            <li class="flex items-center justify-between py-3">
+              <span class="flex items-center gap-2.5 text-[14px] text-white/80"><span class="h-2 w-2 rounded-full dot-low"></span>Clase baja</span>
+              <span class="text-right"><span id="m-low" class="font-mono text-[15px] font-semibold tx-low">—</span><span id="m-low-sub" class="ml-2 text-[12px] text-white/45">—</span></span>
+            </li>
+            <li class="flex items-center justify-between py-3">
+              <span class="flex items-center gap-2.5 text-[14px] text-white/80"><span class="h-2 w-2 rounded-full dot-mid"></span>Clase media</span>
+              <span class="text-right"><span id="m-mid" class="font-mono text-[15px] font-semibold tx-mid">—</span><span id="m-mid-sub" class="ml-2 text-[12px] text-white/45">—</span></span>
+            </li>
+            <li class="flex items-center justify-between py-3">
+              <span class="flex items-center gap-2.5 text-[14px] text-white/80"><span class="h-2 w-2 rounded-full dot-high"></span>Clase alta</span>
+              <span class="text-right"><span id="m-high" class="font-mono text-[15px] font-semibold tx-high">—</span><span id="m-high-sub" class="ml-2 text-[12px] text-white/45">—</span></span>
+            </li>
+          </ul>
+
+          <div class="mt-auto pt-3 grid grid-cols-2 gap-3">
+            <div class="inset-well px-4 py-3">
+              <p class="text-[12px] text-white/50">Brecha alta / baja</p>
+              <p id="m-ratio" class="mt-0.5 font-mono text-lg font-semibold">—</p>
+            </div>
+            <div class="inset-well px-4 py-3">
+              <p class="text-[12px] text-white/50">Fin de la pobreza</p>
+              <p id="m-years" class="mt-0.5 font-mono text-lg font-semibold">—</p>
+              <p id="m-years-sub" class="text-[11px] text-white/40">con este ritmo</p>
+            </div>
+            <div class="inset-well px-4 py-3 col-span-2">
+              <p class="text-[12px] text-white/50">Clase baja vs. la misma ciudad con Gini 0,25</p>
+              <p id="m-bench" class="mt-0.5 font-mono text-lg font-semibold">—</p>
+              <p id="m-bench-sub" class="text-[11px] text-white/40">—</p>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="chart-title" class="glass p-6">
+          <div class="flex items-center justify-between mb-4 gap-2">
+            <h2 id="chart-title" class="text-[13px] font-medium text-white/50">Ingreso vs. línea de pobreza</h2>
+            <div class="inset-well glass-pill flex p-0.5 text-[12px] font-medium" role="group" aria-label="Escala del gráfico">
+              <button id="scale-log" type="button" class="seg px-3 py-1 rounded-full bg-white/20 text-white shadow-sm" aria-pressed="true">Log</button>
+              <button id="scale-lin" type="button" class="seg px-3 py-1 rounded-full text-white/50" aria-pressed="false">Lineal</button>
+            </div>
+          </div>
+          <div class="relative h-56">
+            <canvas id="chart" aria-label="Gráfico de barras de ingresos por clase social con la línea de pobreza" role="img"></canvas>
+          </div>
+        </section>
+
+        <section aria-labelledby="explainer-title" aria-live="polite" class="glass p-6">
+          <h2 id="explainer-title" class="text-[13px] font-medium text-white/50 mb-4">Qué está pasando</h2>
+          <div id="explainer" class="flex flex-col gap-4"></div>
+        </section>
+
+      </div>
+    </aside>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+    /* =====================================================================
+       1. ECONOMIC MODEL
+       ===================================================================== */
+    const POPULATION = 1_000_000;
+    const BASE_PER_CAPITA = 2400;
+    const BASE_GDP = POPULATION * BASE_PER_CAPITA;
+    const POVERTY_LINE = 1200;
+    const GROUPS = [
+      { name: 'Clase baja', pop: 0.5, spread: [0.4, 1.6] },
+      { name: 'Clase media', pop: 0.4, spread: [0.6, 1.4] },
+      { name: 'Clase alta', pop: 0.1, spread: [0.7, 1.3] },
+    ];
+    const BENCHMARK = { g: 0.01, gini: 0.25 };
+
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+
+    function erf(x) {
+      const sign = Math.sign(x);
+      const ax = Math.abs(x);
+      const t = 1 / (1 + 0.3275911 * ax);
+      const y = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-ax * ax);
+      return sign * y;
+    }
+    const normCdf = (x) => 0.5 * (1 + erf(x / Math.SQRT2));
+
+    function normInv(p) {
+      const a = [-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2, 1.38357751867269e2, -3.066479806614716e1, 2.506628277459239];
+      const b = [-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2, 6.680131188771972e1, -1.328068155288572e1];
+      const c = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+      const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996, 3.754408661907416];
+      const pLow = 0.02425;
+      if (p < pLow) {
+        const q = Math.sqrt(-2 * Math.log(p));
+        return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+      }
+      if (p <= 1 - pLow) {
+        const q = p - 0.5;
+        const r = q * q;
+        return ((((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q) / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+      }
+      const q = Math.sqrt(-2 * Math.log(1 - p));
+      return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+    const Z90 = normInv(0.9);
+
+    /* Acople Gini -> crecimiento (automático). Calibración con Maddison 2020, WIID y EFW
+       (ventanas de 10 años, 1980-2018, errores agrupados por país):
+       - Ingreso >= ~$6.000: asociación directa de +0,09 pp de crecimiento por punto de Gini (IC95% 0,05 a 0,13).
+       - Ingreso < ~$6.000: cadena Estado -> crecimiento (-0,28 pp por punto del índice EFW de tamaño del Estado,
+         IC95% 0,01 a 0,56) y Estado -> Gini (-2,45 puntos de Gini por punto del índice, estimado en países ricos)
+         => ~0,11 pp por punto de Gini. Supuesto: el Estado emergente redistribuye como el rico.
+       Son asociaciones entre países, no efectos causales probados. */
+    // Referencia = Gini típico de la muestra de calibración (media 0,39; mediana 0,37; mediana de economías
+    // emergentes 0,405). Decisión de modelado: la regresión es lineal (en los datos, mayor Gini se asocia a algo más
+    // de crecimiento), pero esa asociación no se usa como bonus; solo se aplica el costo de bajar el Gini bajo 0,40.
+    const GINI_REF = 0.40;
+    const BETA_POOR = 0.11, BETA_RICH = 0.09;   // pp de crecimiento anual por punto de Gini
+    const Y_LO = 4000, Y_HI = 8000;            // transición suave en ingreso medio (USD PPA/año)
+    const giniBeta = (y) => lerp(BETA_POOR, BETA_RICH, clamp(Math.log(y / Y_LO) / Math.log(Y_HI / Y_LO), 0, 1));
+    function effGrowth(gRaw, gini, mean) {
+      // Solo hay costo al REDISTRIBUIR (bajar el Gini bajo la referencia). Nunca hay bonus.
+      const pts = Math.max(0, GINI_REF - clamp(gini, 0.25, GINI_REF)) * 100;
+      return clamp(gRaw - (giniBeta(mean) / 100) * pts, -0.9, 0.10);   // tope: ninguna economía sostiene >10% anual por décadas
+    }
+
+    function simulate(gRaw, gini, t) {
+      let m = BASE_PER_CAPITA;
+      for (let k = 0; k < t; k++) m *= 1 + effGrowth(gRaw, gini, m);
+      const mean = m;
+      const g = effGrowth(gRaw, gini, mean);   // crecimiento efectivo en el año t
+      const factor = mean / BASE_PER_CAPITA;
+      const gdp = BASE_GDP * factor;
+      const sigma = Math.SQRT2 * normInv((gini + 1) / 2);
+      const lorenz50 = normCdf(-sigma);
+      const lorenz90 = normCdf(Z90 - sigma);
+      const shares = [lorenz50, lorenz90 - lorenz50, 1 - lorenz90];
+      const incomes = shares.map((s, i) => (mean * s) / GROUPS[i].pop);
+      const fractions = incomes.map((y, i) => {
+        const [lo, hi] = GROUPS[i].spread;
+        return clamp((POVERTY_LINE - lo * y) / ((hi - lo) * y), 0, 1);
+      });
+      const poverty = fractions.reduce((acc, f, i) => acc + f * GROUPS[i].pop, 0);
+      return { g, gRaw, gini, t, factor, gdp, mean, shares, incomes, fractions, poverty };
+    }
+
+    function yearsToEradicate(g, gini) {
+      for (let t = 0; t <= 150; t++) {
+        if (simulate(g, gini, t).fractions.every((f) => f === 0)) return t;
+      }
+      return Infinity;
+    }
+
+    /* =====================================================================
+       2. FORMATTING
+       ===================================================================== */
+    const group3 = (s) => s.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    function num(v, decimals = 0) {
+      const fixed = Math.abs(v).toFixed(decimals);
+      const [int, dec] = fixed.split('.');
+      return (v < 0 ? '−' : '') + group3(int) + (dec ? ',' + dec : '');
+    }
+    const money = (v) => '$' + num(v);
+    function moneyShort(v) {
+      if (v >= 1e6) return '$' + num(v / 1e6, v >= 1e7 ? 0 : 1) + ' M';
+      if (v >= 1e4) return '$' + num(v / 1e3, 0) + ' mil';
+      return '$' + num(v);
+    }
+    function moneyBig(v) {
+      if (v >= 1e12) return '$' + num(v / 1e12, 2) + ' billones';
+      if (v >= 1e9) return '$' + num(v / 1e9, 2) + ' mil M';
+      return '$' + num(v / 1e6, 0) + ' M';
+    }
+    const pct = (v, d = 1) => num(v * 100, d) + '%';
+    const signedPct = (v, d = 1) => (v > 0 ? '+' : '') + num(v * 100, d) + '%';
+
+    /* =====================================================================
+       3. THREE.JS SCENE
+       ===================================================================== */
+    const container = document.getElementById('scene');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x8ec5ef, 80, 220);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environmentIntensity = 0.5;
+
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 600);
+    const CAMERA_HOME = new THREE.Vector3(-6, 54, 82);
+    camera.position.copy(CAMERA_HOME);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.target.set(0, 2, 0);
+    controls.minDistance = 14;
+    controls.maxDistance = 170;
+    controls.maxPolarAngle = Math.PI * 0.47;
+    controls.autoRotateSpeed = 0.6;
+
+    const hemi = new THREE.HemisphereLight(0xdbeafe, 0x4b5a3a, 0.9);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
+    sun.position.set(45, 70, 30);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -70;
+    sun.shadow.camera.right = 70;
+    sun.shadow.camera.top = 55;
+    sun.shadow.camera.bottom = -55;
+    sun.shadow.camera.near = 10;
+    sun.shadow.camera.far = 200;
+    sun.shadow.bias = -0.0005;
+    sun.shadow.normalBias = 0.04;
+    scene.add(sun);
+    const moon = new THREE.DirectionalLight(0x8fa8ff, 0);
+    moon.position.set(-40, 60, -20);
+    scene.add(moon);
+
+    /* ---------- Shared materials & textures ---------- */
+    const std = (color, roughness = 0.85, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness });
+    const M = {
+      ground: std(0x5a7a3e, 1),
+      asphalt: std(0x2b2f36, 0.9),
+      marking: std(0xe8d48a, 0.6),
+      dirtLot: std(0x6e5236, 1),
+      concreteLot: std(0x8a8e93, 0.95),
+      paverLot: std(0xb0aaa0, 0.9),
+      grassLot: std(0x5c9447, 1),
+      darkGrass: std(0x3f7a36, 1),
+      water: std(0x38a9dc, 0.08, 0.1),
+      shackWalls: [0x6e5a48, 0x7a6a5a, 0x5d4f43, 0x8a7258, 0x5b5f63, 0x6b4f3a].map((c) => std(c, 1)),
+      shackRoofs: [0x8c5a3a, 0x7d7f82, 0x6a4a35, 0x93633f, 0x5f6b72].map((c) => std(c, 0.65, 0.45)),
+      brick: [0x9c5a3c, 0xa8633f, 0x8e4f35, 0xb06d47].map((c) => std(c, 0.95)),
+      blockGray: std(0x8d8d88, 0.95),
+      slab: std(0x5a5c5f, 0.9),
+      rebar: std(0x3a3a3a, 0.5, 0.7),
+      barrel: [0x2563eb, 0x0f766e, 0x9a3412].map((c) => std(c, 0.6)),
+      pastel: [0xf2d0a4, 0xbfe0d6, 0xf6e7b4, 0xd7c8ec, 0xf3b8a8, 0xcfe3f6].map((c) => std(c, 0.8)),
+      roofTile: [0xb5543c, 0x8a4a3a, 0x5c6670, 0x9b5e3c].map((c) => std(c, 0.8)),
+      white: std(0xeef0f2, 0.55),
+      wood: std(0x9b6b43, 0.7),
+      door: std(0x3b3026, 0.8),
+      winDark: std(0x2d3d4f, 0.3, 0.3),
+      solar: std(0x1e3a6e, 0.25, 0.7),
+      hedge: std(0x2f6a2c, 1),
+      roof: std(0x4a4d52, 0.85),
+      roofLight: std(0x9ea3a8, 0.7),
+      spire: std(0xdde3ea, 0.25, 0.9),
+      trunk: std(0x6b4a2f, 1),
+      crown: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true }),
+      pole: std(0x3c4148, 0.6, 0.6),
+      lampHead: new THREE.MeshStandardMaterial({ color: 0xfff3d6, emissive: 0xffcf86, emissiveIntensity: 0.3 }),
+      car: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.4 }),
+    };
+
+    function mulberry32(seed) {
+      let a = seed >>> 0;
+      return function () {
+        a |= 0; a = (a + 0x6d2b79f5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    const pick = (rng, arr) => arr[Math.floor(rng() * arr.length) % arr.length];
+
+    const FLOOR_H = 0.35;
+    const TEX_W = 4.0;
+    const TEX_H = FLOOR_H * 8;
+
+    function makeFacade({ wall, glass, lit, litColors, mullion, glassStyle = false, seed = 1, roughness = 0.8, metalness = 0 }) {
+      const size = 256;
+      const cell = size / 8;
+      const map = document.createElement('canvas');
+      const emi = document.createElement('canvas');
+      map.width = map.height = emi.width = emi.height = size;
+      const mc = map.getContext('2d');
+      const ec = emi.getContext('2d');
+      const rng = mulberry32(seed);
+      mc.fillStyle = wall;
+      mc.fillRect(0, 0, size, size);
+      ec.fillStyle = '#000';
+      ec.fillRect(0, 0, size, size);
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const x = c * cell;
+          const y = r * cell;
+          const [wx, wy, ww, wh] = glassStyle ? [x + 2, y + 2, cell - 4, cell - 6] : [x + 7, y + 8, cell - 14, cell - 14];
+          const g = mc.createLinearGradient(wx, wy, wx + ww, wy + wh);
+          const shade = 0.85 + rng() * 0.3;
+          g.addColorStop(0, shadeHex(glass, shade + 0.15));
+          g.addColorStop(1, shadeHex(glass, shade - 0.1));
+          mc.fillStyle = g;
+          mc.fillRect(wx, wy, ww, wh);
+          if (mullion) {
+            mc.fillStyle = mullion;
+            mc.fillRect(wx + ww / 2 - 1, wy, 2, wh);
+          }
+          if (rng() < lit) {
+            ec.fillStyle = pick(rng, litColors);
+            ec.globalAlpha = 0.65 + rng() * 0.35;
+            ec.fillRect(wx, wy, ww, wh);
+            ec.globalAlpha = 1;
+          }
+        }
+      }
+      const mapTex = new THREE.CanvasTexture(map);
+      mapTex.colorSpace = THREE.SRGBColorSpace;
+      const emiTex = new THREE.CanvasTexture(emi);
+      emiTex.colorSpace = THREE.SRGBColorSpace;
+      for (const t of [mapTex, emiTex]) {
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.anisotropy = 4;
+      }
+      const wallMat = new THREE.MeshStandardMaterial({
+        map: mapTex, emissiveMap: emiTex, emissive: 0xffffff, emissiveIntensity: 0, roughness, metalness,
+      });
+      return { wall: wallMat, mats: [wallMat, wallMat, M.roof, M.roof, wallMat, wallMat], cyl: [wallMat, M.roof, M.roof] };
+    }
+    function shadeHex(hex, f) {
+      const n = parseInt(hex.slice(1), 16);
+      const r = clamp(Math.round(((n >> 16) & 255) * f), 0, 255);
+      const g = clamp(Math.round(((n >> 8) & 255) * f), 0, 255);
+      const b = clamp(Math.round((n & 255) * f), 0, 255);
+      return `rgb(${r},${g},${b})`;
+    }
+    const WARM = ['#ffd58a', '#ffe2a8', '#ffc56e'];
+    const COOL = ['#e6f0ff', '#cfe3ff', '#fff6e0'];
+    const F = {
+      concrete: makeFacade({ wall: '#9a968e', glass: '#3b4652', lit: 0.35, litColors: WARM, seed: 3 }),
+      cream: makeFacade({ wall: '#d8c7a8', glass: '#46596b', lit: 0.4, litColors: WARM, mullion: '#d8c7a8', seed: 5 }),
+      lowModern: makeFacade({ wall: '#f1efe9', glass: '#5f84a6', lit: 0.45, litColors: WARM, seed: 7, roughness: 0.6 }),
+      modern: makeFacade({ wall: '#e9e6df', glass: '#4f7799', lit: 0.45, litColors: COOL, mullion: '#e9e6df', seed: 9, roughness: 0.6 }),
+      glassBlue: makeFacade({ wall: '#27313d', glass: '#5b93c7', lit: 0.32, litColors: COOL, glassStyle: true, seed: 11, roughness: 0.18, metalness: 0.55 }),
+      glassTeal: makeFacade({ wall: '#25323a', glass: '#4fa3a5', lit: 0.32, litColors: COOL, glassStyle: true, seed: 13, roughness: 0.18, metalness: 0.5 }),
+      glassDark: makeFacade({ wall: '#1b2330', glass: '#3a5a86', lit: 0.35, litColors: COOL, glassStyle: true, seed: 17, roughness: 0.15, metalness: 0.6 }),
+    };
+    const FACADE_LIST = Object.values(F);
+
+    /* ---------- Shared geometry ---------- */
+    const unitBox = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
+    const pyramidGeo = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4).rotateY(Math.PI / 4).translate(0, 0.5, 0);
+    const trunkGeo = new THREE.CylinderGeometry(0.05, 0.07, 0.45, 6).translate(0, 0.225, 0);
+    const crownGeo = new THREE.IcosahedronGeometry(0.34, 0).translate(0, 0.65, 0);
+    const barrelGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.2, 8).translate(0, 0.1, 0);
+    const spireGeo = new THREE.ConeGeometry(0.18, 1, 8).translate(0, 0.5, 0);
+    const fountainGeo = new THREE.CylinderGeometry(0.5, 0.55, 0.12, 20).translate(0, 0.06, 0);
+
+    function facadeBox(w, h, d) {
+      const g = new THREE.BoxGeometry(w, h, d);
+      const uv = g.attributes.uv;
+      const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
+      for (let f = 0; f < 6; f++) {
+        for (let i = 0; i < 4; i++) {
+          const idx = f * 4 + i;
+          uv.setXY(idx, (uv.getX(idx) * dims[f][0]) / TEX_W, (uv.getY(idx) * dims[f][1]) / TEX_H);
+        }
+      }
+      g.translate(0, h / 2, 0);
+      return g;
+    }
+    function facadeCylinder(r, h) {
+      const seg = 24;
+      const g = new THREE.CylinderGeometry(r, r, h, seg, 1);
+      const uv = g.attributes.uv;
+      const sideCount = (seg + 1) * 2;
+      for (let i = 0; i < sideCount; i++) {
+        uv.setXY(i, (uv.getX(i) * 2 * Math.PI * r) / TEX_W, (uv.getY(i) * h) / TEX_H);
+      }
+      g.translate(0, h / 2, 0);
+      return g;
+    }
+
+    /* ---------- Builder helpers ---------- */
+    function addBox(group, mat, x, y, z, w, h, d, ry = 0) {
+      const m = new THREE.Mesh(unitBox, mat);
+      m.scale.set(w, h, d);
+      m.position.set(x, y, z);
+      m.rotation.y = ry;
+      group.add(m);
+      return m;
+    }
+    function addShared(group, geo, mat, x, y, z, sx = 1, sy = 1, sz = 1, ry = 0) {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      m.scale.set(sx, sy, sz);
+      m.rotation.y = ry;
+      group.add(m);
+      return m;
+    }
+    function addBuilding(group, facade, x, z, w, h, d, y = 0, ry = 0) {
+      const m = new THREE.Mesh(facadeBox(w, h, d), facade.mats);
+      m.userData.ownGeometry = true;
+      m.position.set(x, y, z);
+      m.rotation.y = ry;
+      group.add(m);
+      return m;
+    }
+    function addTower(group, facade, x, z, r, h) {
+      const m = new THREE.Mesh(facadeCylinder(r, h), facade.cyl);
+      m.userData.ownGeometry = true;
+      m.position.set(x, 0, z);
+      group.add(m);
+      return m;
+    }
+    const treeColors = [0x4f8a3c, 0x3f7a33, 0x5e9a44, 0x6aa24b, 0x467f37];
+    function addTree(group, x, z, s = 1, rng = Math.random) {
+      addShared(group, trunkGeo, M.trunk, x, 0.06, z, s, s, s);
+      const c = M.crown.clone();
+      c.color.setHex(pick(rng, treeColors));
+      const crown = addShared(group, crownGeo, c, x, 0.06, z, s, s, s, rng() * Math.PI);
+      crown.userData.ownMaterial = true;
+    }
+    function addPark(group, x, z, rng) {
+      addBox(group, M.grassLot, x, 0, z, 3.8, 0.07, 3.8);
+      addBox(group, M.paverLot, x, 0.07, z, 3.8, 0.01, 0.45);
+      addBox(group, M.paverLot, x, 0.07, z, 0.45, 0.01, 3.8);
+      addShared(group, fountainGeo, M.paverLot, x, 0.07, z);
+      addShared(group, fountainGeo, M.water, x, 0.1, z, 0.75, 0.6, 0.75);
+      [[-1.2, -1.2], [1.2, -1.2], [-1.2, 1.2], [1.2, 1.2], [-1.3, 0.2], [0.2, 1.35], [1.3, -0.2], [-0.2, -1.35]].forEach(([ox, oz]) => {
+        addTree(group, x + ox, z + oz, 0.9 + rng() * 0.4, rng);
+      });
+    }
+
+    const LOT_OFFSETS = [-10, -5, 0, 5, 10];
+    const STREETS = [-7.5, -2.5, 2.5, 7.5];
+    function forEachLot(cx, cb) {
+      for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) cb(cx + LOT_OFFSETS[i], LOT_OFFSETS[j], i, j);
+    }
+    const lotRng = (cls, i, j, tier) => mulberry32(cls * 7919 + (i * 5 + j) * 131 + tier * 1009 + 17);
+    const isCenter = (i, j) => i === 2 && j === 2;
+
+    /* ---------- District builders ---------- */
+    function buildLower(group, tier, prog, cx) {
+      const hf = 0.8 + 0.5 * prog;
+      forEachLot(cx, (x, z, i, j) => {
+        const r = lotRng(0, i, j, tier);
+        if (tier === 0) {
+          addBox(group, M.dirtLot, x, 0, z, 3.8, 0.05, 3.8);
+          const n = 6 + Math.floor(r() * 3);
+          for (let k = 0; k < n; k++) {
+            const w = 0.55 + r() * 0.5, d = 0.5 + r() * 0.45, h = 0.3 + r() * 0.22;
+            const px = x + (r() - 0.5) * 2.7, pz = z + (r() - 0.5) * 2.7, ry = r() * Math.PI;
+            addBox(group, pick(r, M.shackWalls), px, 0.05, pz, w, h, d, ry);
+            const roof = addBox(group, pick(r, M.shackRoofs), px, 0.05 + h, pz, w + 0.14, 0.035, d + 0.14, ry);
+            roof.rotation.z = (r() - 0.5) * 0.25;
+          }
+          if (r() < 0.6) addShared(group, barrelGeo, pick(r, M.barrel), x + (r() - 0.5) * 3, 0.05, z + (r() - 0.5) * 3);
+        } else if (tier === 1) {
+          addBox(group, M.dirtLot, x, 0, z, 3.8, 0.05, 3.8);
+          [[-0.85, -0.85], [0.85, -0.85], [-0.85, 0.85], [0.85, 0.85]].forEach(([ox, oz]) => {
+            if (r() < 0.12) return;
+            const w = 1.15 + r() * 0.3, d = 1.05 + r() * 0.35, h = 0.42 + r() * 0.12;
+            const px = x + ox + (r() - 0.5) * 0.2, pz = z + oz + (r() - 0.5) * 0.2;
+            addBox(group, pick(r, M.brick), px, 0.05, pz, w, h, d);
+            addBox(group, M.slab, px, 0.05 + h, pz, w + 0.04, 0.04, d + 0.04);
+            if (r() < 0.5) {
+              const w2 = w * (0.5 + r() * 0.3);
+              addBox(group, M.blockGray, px - (w - w2) / 2, 0.09 + h, pz, w2, h * 0.8, d * 0.8);
+            } else {
+              for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+                addBox(group, M.rebar, px + sx * (w / 2 - 0.06), 0.09 + h, pz + sz * (d / 2 - 0.06), 0.025, 0.2, 0.025);
+              }
+            }
+            addBox(group, M.door, px, 0.05, pz + d / 2 + 0.005, 0.18, 0.28, 0.02);
+          });
+        } else if (tier === 2) {
+          addBox(group, M.paverLot, x, 0, z, 3.8, 0.06, 3.8);
+          [[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]].forEach(([ox, oz]) => {
+            const px = x + ox, pz = z + oz;
+            addBox(group, M.grassLot, px, 0.06, pz, 1.7, 0.015, 1.7);
+            addBox(group, pick(r, M.pastel), px, 0.06, pz - 0.1, 1.25, 0.5, 1.1);
+            addShared(group, pyramidGeo, pick(r, M.roofTile), px, 0.56, pz - 0.1, 1.4, 0.36, 1.25);
+            addBox(group, M.door, px - 0.3, 0.06, pz + 0.455, 0.2, 0.3, 0.02);
+            addBox(group, M.winDark, px + 0.25, 0.25, pz + 0.455, 0.3, 0.18, 0.02);
+          });
+        } else if (tier === 3) {
+          if (isCenter(i, j)) return addPark(group, x, z, r);
+          addBox(group, M.grassLot, x, 0, z, 3.8, 0.06, 3.8);
+          if ((i + j) % 2 === 0) {
+            const floors = Math.max(3, Math.round((3 + r() * 1.5) * hf));
+            addBuilding(group, F.lowModern, x, z - 0.4, 3.1, floors * FLOOR_H, 1.8, 0.06);
+            addBox(group, M.paverLot, x, 0.06, z + 1.25, 3.4, 0.015, 0.7);
+          } else {
+            [[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]].forEach(([ox, oz]) => {
+              const px = x + ox, pz = z + oz;
+              addBox(group, M.white, px, 0.06, pz, 1.25, 0.55, 1.1);
+              addBox(group, M.wood, px + 0.25, 0.61, pz, 0.6, 0.32, 0.9);
+              addBox(group, M.winDark, px - 0.2, 0.2, pz + 0.555, 0.5, 0.25, 0.02);
+              addBox(group, M.solar, px - 0.3, 0.63, pz, 0.45, 0.03, 0.8).rotation.z = 0.3;
+            });
+          }
+        } else {
+          if (isCenter(i, j) || (i === 0 && j === 4)) return addPark(group, x, z, r);
+          addBox(group, M.grassLot, x, 0, z, 3.8, 0.06, 3.8);
+          const f1 = Math.max(4, Math.round((5 + r() * 2) * hf));
+          const f2 = Math.max(4, Math.round((5 + r() * 2) * hf));
+          addBuilding(group, F.lowModern, x, z - 0.85, 3.2, f1 * FLOOR_H, 1.25, 0.06);
+          addBuilding(group, F.modern, x, z + 0.95, 3.2, f2 * FLOOR_H, 1.1, 0.06);
+          for (const [bz, f] of [[-0.85, f1], [0.95, f2]]) {
+            for (let k = -1; k <= 1; k++) {
+              addBox(group, M.solar, x + k * 0.95, 0.07 + f * FLOOR_H, z + bz, 0.75, 0.04, 0.7).rotation.x = -0.35;
+            }
+          }
+        }
+      });
+    }
+
+    function buildMiddle(group, tier, prog, cx) {
+      const hf = 0.8 + 0.5 * prog;
+      forEachLot(cx, (x, z, i, j) => {
+        const r = lotRng(1, i, j, tier);
+        if (tier === 0) {
+          addBox(group, M.concreteLot, x, 0, z, 3.8, 0.06, 3.8);
+          const floors = Math.max(3, Math.round((3 + r() * 1.4) * hf));
+          addBuilding(group, F.concrete, x, z - 0.3, 3.0, floors * FLOOR_H, 1.6, 0.06);
+          addBox(group, M.dirtLot, x + 0.6, 0.06, z + 1.25, 1.8, 0.012, 0.8);
+        } else if (tier === 1) {
+          addBox(group, M.concreteLot, x, 0, z, 3.8, 0.06, 3.8);
+          const fa = Math.max(4, Math.round((5 + r() * 2) * hf));
+          const fb = Math.max(4, Math.round((4 + r() * 2) * hf));
+          addBuilding(group, F.cream, x, z - 1.0, 3.3, fa * FLOOR_H, 1.2, 0.06);
+          addBuilding(group, F.cream, x + 1.05, z + 0.65, 1.2, fb * FLOOR_H, 1.9, 0.06);
+          addBox(group, M.grassLot, x - 0.7, 0.06, z + 0.75, 1.6, 0.015, 1.6);
+          addTree(group, x - 0.7, z + 0.75, 0.9, r);
+        } else if (tier === 2) {
+          if (isCenter(i, j)) return addPark(group, x, z, r);
+          addBox(group, M.grassLot, x, 0, z, 3.8, 0.06, 3.8);
+          const fa = Math.max(6, Math.round((7 + r() * 3) * hf));
+          const fb = Math.max(6, Math.round((7 + r() * 3) * hf));
+          addBuilding(group, F.modern, x - 0.9, z - 0.9, 1.55, fa * FLOOR_H, 1.55, 0.06);
+          addBuilding(group, F.modern, x + 0.9, z + 0.9, 1.55, fb * FLOOR_H, 1.55, 0.06);
+          addTree(group, x + 0.9, z - 0.9, 1.1, r);
+          addTree(group, x - 0.9, z + 0.9, 1.1, r);
+          addBox(group, M.paverLot, x, 0.06, z, 0.5, 0.012, 3.6);
+        } else {
+          if (isCenter(i, j)) return addPark(group, x, z, r);
+          addBox(group, M.grassLot, x, 0, z, 3.8, 0.06, 3.8);
+          const podium = FLOOR_H * 1.3;
+          addBuilding(group, F.glassTeal, x, z, 3.3, podium, 3.3, 0.06);
+          addBox(group, M.darkGrass, x, 0.06 + podium, z, 3.2, 0.05, 3.2);
+          const floors = Math.max(9, Math.round((10 + r() * 4) * hf));
+          const tx = x + (r() - 0.5) * 0.6, tz = z + (r() - 0.5) * 0.6;
+          const top = 0.11 + podium + floors * FLOOR_H;
+          addBuilding(group, pick(r, [F.modern, F.glassTeal]), tx, tz, 1.8, floors * FLOOR_H, 1.8, 0.11 + podium);
+          addBox(group, M.darkGrass, tx, top, tz, 1.6, 0.06, 1.6);
+          addTree(group, tx + 0.4, tz + 0.4, 0.6, r);
+          addTree(group, x - 1.2, z + 1.2, 0.7, r);
+          addTree(group, x + 1.2, z - 1.2, 0.7, r);
+        }
+      });
+    }
+
+    function addVilla(group, x, z, r) {
+      addBox(group, M.grassLot, x, 0, z, 3.8, 0.06, 3.8);
+      addBox(group, M.white, x - 0.35, 0.06, z - 0.55, 2.0, 0.62, 1.3);
+      addBox(group, M.roofLight, x - 0.35, 0.68, z - 0.55, 2.1, 0.05, 1.4);
+      addBox(group, M.wood, x + 0.85, 0.06, z + 0.15, 1.0, 0.5, 1.1);
+      addShared(group, pyramidGeo, pick(r, M.roofTile), x + 0.85, 0.56, z + 0.15, 1.15, 0.3, 1.25);
+      addBox(group, M.winDark, x - 0.35, 0.22, z + 0.105, 1.4, 0.3, 0.02);
+      addBox(group, M.paverLot, x - 0.45, 0.06, z + 1.0, 1.7, 0.02, 1.0);
+      addBox(group, M.water, x - 0.45, 0.075, z + 1.0, 1.35, 0.02, 0.7);
+      for (const [hx, hz, hw, hd] of [[0, -1.82, 3.7, 0.12], [0, 1.82, 3.7, 0.12], [-1.82, 0, 0.12, 3.7], [1.82, 0, 0.12, 3.7]]) {
+        addBox(group, M.hedge, x + hx, 0.06, z + hz, hw, 0.22, hd);
+      }
+      addTree(group, x + 1.25, z - 1.25, 1.1, r);
+      addTree(group, x + 1.3, z + 1.25, 0.9, r);
+    }
+
+    function buildUpper(group, tier, prog, cx) {
+      const hf = 0.8 + 0.5 * prog;
+      const glass = [F.glassBlue, F.glassDark, F.glassTeal];
+      forEachLot(cx, (x, z, i, j) => {
+        const r = lotRng(2, i, j, tier);
+        if (tier === 0) return addVilla(group, x, z, r);
+        if (tier === 1) {
+          if (r() < 0.36 || isCenter(i, j)) {
+            addBox(group, M.paverLot, x, 0, z, 3.8, 0.06, 3.8);
+            const floors = Math.max(8, Math.round((10 + r() * 6) * hf));
+            addBuilding(group, F.glassBlue, x, z, 2.2, floors * FLOOR_H, 2.2, 0.06);
+            addTree(group, x - 1.4, z + 1.4, 0.9, r);
+          } else {
+            addVilla(group, x, z, r);
+          }
+          return;
+        }
+        addBox(group, M.paverLot, x, 0, z, 3.8, 0.06, 3.8);
+        if (tier === 2) {
+          if (r() < 0.5) {
+            const floors = Math.max(14, Math.round((15 + r() * 15) * hf));
+            addBuilding(group, pick(r, glass), x, z, 2.6, floors * FLOOR_H, 2.6, 0.06);
+          } else {
+            const fa = Math.max(12, Math.round((12 + r() * 12) * hf));
+            const fb = Math.max(12, Math.round((12 + r() * 12) * hf));
+            addBuilding(group, pick(r, glass), x - 0.85, z - 0.85, 1.6, fa * FLOOR_H, 1.6, 0.06);
+            addBuilding(group, pick(r, glass), x + 0.85, z + 0.85, 1.6, fb * FLOOR_H, 1.6, 0.06);
+          }
+          addTree(group, x - 1.4, z + 1.4, 0.8, r);
+          addTree(group, x + 1.4, z - 1.4, 0.8, r);
+          return;
+        }
+        if (isCenter(i, j)) {
+          const floors = Math.round(72 * hf);
+          const h = floors * FLOOR_H;
+          addBuilding(group, F.glassDark, x, z, 3.6, FLOOR_H * 3, 3.6, 0.06);
+          addTower(group, F.glassBlue, x, z, 1.35, h);
+          addShared(group, spireGeo, M.spire, x, h, z, 1, h * 0.18, 1);
+          return;
+        }
+        const floors = Math.max(26, Math.round((28 + r() * 26) * hf));
+        const fac = pick(r, glass);
+        const h1 = Math.round(floors * 0.55) * FLOOR_H;
+        const h2 = Math.round(floors * 0.3) * FLOOR_H;
+        const h3 = Math.round(floors * 0.15) * FLOOR_H;
+        addBuilding(group, fac, x, z, 2.9, h1, 2.9, 0.06);
+        addBuilding(group, fac, x, z, 2.3, h2, 2.3, 0.06 + h1);
+        addBuilding(group, fac, x, z, 1.7, h3, 1.7, 0.06 + h1 + h2);
+        if (r() < 0.5) addBox(group, M.spire, x, 0.06 + h1 + h2 + h3, z, 0.06, 2 + r() * 2, 0.06);
+      });
+    }
+
+    /* ---------- Static city: ground, avenues ---------- */
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(260, 200), M.ground);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    function addStrip(x, z, w, d, mat, y = 0.02) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(x, y, z);
+      m.receiveShadow = true;
+      scene.add(m);
+      return m;
+    }
+    for (const zz of [-14.6, 14.6]) {
+      addStrip(0, zz, 104, 3.2, M.asphalt);
+      for (let x = -50; x < 50; x += 2.4) addStrip(x + 0.6, zz, 1.1, 0.08, M.marking, 0.025);
+    }
+    for (const xx of [-15, 15, -45, 45]) {
+      addStrip(xx, 0, 3.2, 26, M.asphalt);
+      for (let z = -12; z < 12; z += 2.4) addStrip(xx, z + 0.6, 0.08, 1.1, M.marking, 0.025);
+    }
+
+    /* ---------- Districts (dynamic) ---------- */
+    const DISTRICTS = [
+      { name: 'Distrito Bajo', cls: 0, cx: -30, th: [0.9, 1.6, 2.5, 4], build: buildLower, tone: 'district-tone-low',
+        trees: [0, 0.04, 0.25, 0.6, 0.85], lights: [0, 0.12, 0.55, 0.9, 1], cars: [0.03, 0.1, 0.35, 0.6, 0.8], paved: [false, false, true, true, true], glow: [0, 0.1, 0.45, 0.8, 1] },
+      { name: 'Distrito Medio', cls: 1, cx: 0, th: [2, 4, 8], build: buildMiddle, tone: 'district-tone-mid',
+        trees: [0.12, 0.35, 0.7, 1], lights: [0.5, 0.8, 1, 1], cars: [0.3, 0.5, 0.75, 1], paved: [true, true, true, true], glow: [0.35, 0.6, 0.85, 1] },
+      { name: 'Distrito Alto', cls: 2, cx: 30, th: [6, 15, 40], build: buildUpper, tone: 'district-tone-high',
+        trees: [0.6, 0.5, 0.6, 0.8], lights: [0.6, 1, 1, 1], cars: [0.3, 0.5, 0.8, 1], paved: [true, true, true, true], glow: [0.6, 0.8, 1, 1] },
+    ];
+    const DIRT_COLOR = new THREE.Color(0x5e4630);
+    const ASPHALT_COLOR = new THREE.Color(0x2e3239);
+
+    function tierInfo(ratio, th) {
+      let t = 0;
+      while (t < th.length && ratio >= th[t]) t++;
+      const lo = t === 0 ? th[0] / 2.5 : th[t - 1];
+      const hi = t === th.length ? th[th.length - 1] * 3 : th[t];
+      const prog = clamp(Math.log(Math.max(ratio, 1e-6) / lo) / Math.log(hi / lo), 0, 1);
+      return { tier: t, prog };
+    }
+
+    const glowTexture = (() => {
+      const c = document.createElement('canvas');
+      c.width = c.height = 128;
+      const ctx = c.getContext('2d');
+      const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      g.addColorStop(0, 'rgba(255,214,150,1)');
+      g.addColorStop(0.4, 'rgba(255,190,110,0.35)');
+      g.addColorStop(1, 'rgba(255,170,90,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 128, 128);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    })();
+    const glowMat = new THREE.MeshBasicMaterial({ map: glowTexture, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
+    const poleGeo = new THREE.CylinderGeometry(0.03, 0.045, 1, 6).translate(0, 0.5, 0);
+    const headGeo = new THREE.SphereGeometry(0.09, 10, 8);
+    const glowGeo = new THREE.PlaneGeometry(2.6, 2.6).rotateX(-Math.PI / 2);
+    const carGeo = new THREE.BoxGeometry(0.5, 0.2, 0.26).translate(0, 0.1, 0);
+    const carColors = [0xe11d48, 0xf8fafc, 0x1e293b, 0x2563eb, 0xf59e0b, 0x64748b, 0x10b981, 0xd4d4d8];
+
+    function shuffled(arr, rng) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    const dummy = new THREE.Object3D();
+    const tmpColor = new THREE.Color();
+    const districtState = DISTRICTS.map((def) => {
+      const rng = mulberry32(400 + def.cls * 31);
+
+      const baseMat = new THREE.MeshStandardMaterial({ color: ASPHALT_COLOR.clone(), roughness: 0.95 });
+      const base = new THREE.Mesh(new THREE.PlaneGeometry(25.4, 25.4), baseMat);
+      base.rotation.x = -Math.PI / 2;
+      base.position.set(def.cx, 0.012, 0);
+      base.receiveShadow = true;
+      scene.add(base);
+
+      const lampSpots = [];
+      for (const s of STREETS) {
+        for (const o of LOT_OFFSETS) {
+          lampSpots.push([def.cx + s + 0.55, o + 1.2]);
+          lampSpots.push([def.cx + o - 1.2, s + 0.55]);
+        }
+      }
+      for (const s of STREETS) for (const s2 of STREETS) lampSpots.push([def.cx + s + 0.6, s2 + 0.6]);
+      const lamps = shuffled(lampSpots, rng);
+      const poles = new THREE.InstancedMesh(poleGeo, M.pole, lamps.length);
+      const heads = new THREE.InstancedMesh(headGeo, M.lampHead, lamps.length);
+      const glows = new THREE.InstancedMesh(glowGeo, glowMat, lamps.length);
+      lamps.forEach(([x, z], k) => {
+        dummy.position.set(x, 0, z); dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix();
+        poles.setMatrixAt(k, dummy.matrix);
+        dummy.position.set(x, 1.0, z); dummy.updateMatrix();
+        heads.setMatrixAt(k, dummy.matrix);
+        dummy.position.set(x, 0.04, z); dummy.updateMatrix();
+        glows.setMatrixAt(k, dummy.matrix);
+      });
+      poles.castShadow = true;
+      glows.renderOrder = 2;
+      scene.add(poles, heads, glows);
+
+      const treeSpots = [];
+      for (const s of STREETS) {
+        for (let a = -11.6; a <= 11.6; a += 1.45) {
+          if (STREETS.some((s2) => Math.abs(a - s2) < 0.9)) continue;
+          for (const side of [-0.78, 0.78]) {
+            treeSpots.push([def.cx + s + side, a]);
+            treeSpots.push([def.cx + a, s + side]);
+          }
+        }
+      }
+      for (let a = -11.6; a <= 11.6; a += 1.6) {
+        treeSpots.push([def.cx + a, -12.35]);
+        treeSpots.push([def.cx + a, 12.35]);
+      }
+      const trees = shuffled(treeSpots, rng);
+      const trunks = new THREE.InstancedMesh(trunkGeo, M.trunk, trees.length);
+      const crowns = new THREE.InstancedMesh(crownGeo, M.crown, trees.length);
+      trees.forEach(([x, z], k) => {
+        const s = 0.8 + rng() * 0.45;
+        dummy.position.set(x, 0.02, z); dummy.rotation.set(0, rng() * Math.PI, 0); dummy.scale.set(s, s, s); dummy.updateMatrix();
+        trunks.setMatrixAt(k, dummy.matrix);
+        crowns.setMatrixAt(k, dummy.matrix);
+        crowns.setColorAt(k, tmpColor.setHex(treeColors[k % treeColors.length]));
+      });
+      trunks.castShadow = crowns.castShadow = true;
+      trunks.count = crowns.count = 0;
+      scene.add(trunks, crowns);
+
+      const pointLight = new THREE.PointLight(0xffc98a, 0, 34, 1.4);
+      pointLight.position.set(def.cx, 7, 0);
+      scene.add(pointLight);
+
+      return {
+        def, base, baseMat, poles, heads, glows, trunks, crowns, pointLight,
+        lampCount: lamps.length, treeCount: trees.length,
+        group: null, key: '', tier: 0, prog: 0, p: 0, grow: 1, ratio: 1,
+        lightLevel: 0, targetLight: 0,
+      };
+    });
+
+    /* ---------- Traffic ---------- */
+    function makePool(lanes, size, seed) {
+      const rng = mulberry32(seed);
+      const mesh = new THREE.InstancedMesh(carGeo, M.car, size);
+      mesh.castShadow = true;
+      const cars = [];
+      for (let k = 0; k < size; k++) {
+        const lane = lanes[k % lanes.length];
+        cars.push({ ...lane, pos: lane.min + rng() * (lane.max - lane.min), speed: 2.2 + rng() * 2.4 });
+        mesh.setColorAt(k, tmpColor.setHex(carColors[Math.floor(rng() * carColors.length)]));
+      }
+      mesh.count = 0;
+      scene.add(mesh);
+      return { mesh, cars, target: 0, current: 0 };
+    }
+    const mainLanes = [];
+    for (const zz of [-14.6, 14.6]) {
+      mainLanes.push({ axis: 'x', fixed: zz - 0.7, min: -52, max: 52, dir: 1 });
+      mainLanes.push({ axis: 'x', fixed: zz + 0.7, min: -52, max: 52, dir: -1 });
+    }
+    for (const xx of [-15, 15, -45, 45]) {
+      mainLanes.push({ axis: 'z', fixed: xx - 0.7, min: -14.6, max: 14.6, dir: 1 });
+      mainLanes.push({ axis: 'z', fixed: xx + 0.7, min: -14.6, max: 14.6, dir: -1 });
+    }
+    const mainPool = makePool(shuffled(mainLanes, mulberry32(9)), 170, 21);
+    const districtPools = DISTRICTS.map((def, idx) => {
+      const lanes = [];
+      for (const s of STREETS) {
+        lanes.push({ axis: 'x', fixed: s - 0.27, min: def.cx - 12.5, max: def.cx + 12.5, dir: 1 });
+        lanes.push({ axis: 'x', fixed: s + 0.27, min: def.cx - 12.5, max: def.cx + 12.5, dir: -1 });
+        lanes.push({ axis: 'z', fixed: def.cx + s - 0.27, min: -12.5, max: 12.5, dir: 1 });
+        lanes.push({ axis: 'z', fixed: def.cx + s + 0.27, min: -12.5, max: 12.5, dir: -1 });
+      }
+      return makePool(shuffled(lanes, mulberry32(50 + idx)), 70, 77 + idx);
+    });
+
+    function updatePool(pool, dt, speedFactor) {
+      pool.current = lerp(pool.current, pool.target, Math.min(1, dt * 2));
+      const n = Math.round(pool.current);
+      pool.mesh.count = n;
+      for (let k = 0; k < n; k++) {
+        const c = pool.cars[k];
+        c.pos += c.dir * c.speed * speedFactor * dt;
+        if (c.pos > c.max) c.pos = c.min;
+        if (c.pos < c.min) c.pos = c.max;
+        if (c.axis === 'x') {
+          dummy.position.set(c.pos, 0.03, c.fixed);
+          dummy.rotation.set(0, c.dir > 0 ? 0 : Math.PI, 0);
+        } else {
+          dummy.position.set(c.fixed, 0.03, c.pos);
+          dummy.rotation.set(0, c.dir > 0 ? -Math.PI / 2 : Math.PI / 2, 0);
+        }
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        pool.mesh.setMatrixAt(k, dummy.matrix);
+      }
+      pool.mesh.instanceMatrix.needsUpdate = true;
+    }
+
+    /* ---------- Apply simulation to 3D ---------- */
+    function disposeGroup(group) {
+      group.traverse((o) => {
+        if (o.userData.ownGeometry) o.geometry.dispose();
+        if (o.userData.ownMaterial) o.material.dispose();
+      });
+      scene.remove(group);
+    }
+
+    const env = { cityP: 0.5, targetCityP: 0.5, night: 1, targetNight: 1, speed: 1 };
+
+    function applyCity(sim) {
+      env.targetCityP = clamp((Math.log10(sim.mean / BASE_PER_CAPITA) + 0.6) / 1.6, 0, 1);
+      env.speed = 0.6 + env.targetCityP * 0.8;
+      mainPool.target = 12 + 158 * env.targetCityP;
+
+      districtState.forEach((d, idx) => {
+        const ratio = sim.incomes[idx] / POVERTY_LINE;
+        const { tier, prog } = tierInfo(ratio, d.def.th);
+        const bucket = Math.round(prog * 5);
+        const key = `${tier}_${bucket}`;
+        d.ratio = ratio;
+        d.tier = tier;
+        d.prog = prog;
+        d.p = (tier + prog) / (d.def.th.length + 1);
+        if (key !== d.key) {
+          const tierChanged = !d.key || d.key.split('_')[0] !== String(tier);
+          d.key = key;
+          if (d.group) disposeGroup(d.group);
+          const g = new THREE.Group();
+          d.def.build(g, tier, prog, d.def.cx);
+          g.traverse((o) => {
+            if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+          });
+          scene.add(g);
+          d.group = g;
+          if (tierChanged) { d.grow = 0; g.scale.y = 0.001; }
+          d.baseMat.color.copy(d.def.paved[tier] ? ASPHALT_COLOR : DIRT_COLOR);
+          d.trunks.count = d.crowns.count = Math.round(d.treeCount * d.def.trees[tier]);
+          const lampN = Math.round(d.lampCount * d.def.lights[tier]);
+          d.poles.count = d.heads.count = d.glows.count = lampN;
+        }
+        d.targetLight = d.def.glow[tier];
+        districtPools[idx].target = 70 * d.def.cars[tier];
+      });
+    }
+
+    /* ---------- Environment colors ---------- */
+    const SKY_POOR = new THREE.Color(0x9a8f7c);
+    const SKY_RICH = new THREE.Color(0x8cc8f2);
+    const SKY_NIGHT = new THREE.Color(0x070c1a);
+    const GROUND_POOR = new THREE.Color(0x7a6a4c);
+    const GROUND_RICH = new THREE.Color(0x4f8a3e);
+    const skyColor = new THREE.Color();
+
+    function updateEnvironment(dt) {
+      env.cityP = lerp(env.cityP, env.targetCityP, Math.min(1, dt * 2.5));
+      env.night = lerp(env.night, env.targetNight, Math.min(1, dt * 2.5));
+      const day = 1 - env.night;
+
+      skyColor.copy(SKY_POOR).lerp(SKY_RICH, env.cityP).lerp(SKY_NIGHT, env.night);
+      scene.background = skyColor;
+      scene.fog.color.copy(skyColor);
+      scene.fog.near = lerp(40, 90, env.cityP);
+      scene.fog.far = lerp(150, 240, env.cityP);
+
+      M.ground.color.copy(GROUND_POOR).lerp(GROUND_RICH, env.cityP);
+
+      sun.intensity = day * lerp(1.6, 2.8, env.cityP);
+      hemi.intensity = lerp(0.12, lerp(0.7, 1.0, env.cityP), day);
+      moon.intensity = env.night * 0.35;
+      scene.environmentIntensity = lerp(0.06, 0.5, day);
+
+      for (const f of FACADE_LIST) f.wall.emissiveIntensity = env.night * 0.75;
+      M.lampHead.emissiveIntensity = 0.25 + env.night * 4;
+      glowMat.opacity = env.night * 0.85;
+
+      districtState.forEach((d) => {
+        d.lightLevel = lerp(d.lightLevel, d.targetLight, Math.min(1, dt * 3));
+        d.pointLight.intensity = env.night * d.lightLevel * 90;
+        if (d.group && d.grow < 1) {
+          d.grow = Math.min(1, d.grow + dt * 1.6);
+          const e = 1 - Math.pow(1 - d.grow, 3);
+          d.group.scale.y = Math.max(0.001, e);
+        }
+      });
+    }
+
+    /* ---------- District labels ---------- */
+    const labelsRoot = document.getElementById('labels');
+    const labelEls = DISTRICTS.map((def) => {
+      const el = document.createElement('div');
+      el.className = 'district-label';
+      el.innerHTML = `
+        <div class="district-label-card ${def.tone} flex items-center gap-2 rounded-lg bg-slate-950/75 backdrop-blur ring-1 ring-white/15 px-2.5 py-1.5 shadow-lg">
+          <span class="h-2.5 w-2.5 rounded-full"></span>
+          <div class="leading-tight">
+            <p class="text-[11px] font-semibold text-white">${def.name}</p>
+            <p class="text-[10px] font-mono" data-role="value">—</p>
+          </div>
+        </div>`;
+      labelsRoot.appendChild(el);
+      return { el, value: el.querySelector('[data-role="value"]'), anchor: new THREE.Vector3(def.cx, 0.2, 13.2) };
+    });
+    const projected = new THREE.Vector3();
+    function updateLabels() {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      labelEls.forEach((l) => {
+        projected.copy(l.anchor).project(camera);
+        const visible = projected.z < 1 && Math.abs(projected.x) < 1.15 && Math.abs(projected.y) < 1.15;
+        l.el.style.opacity = visible ? '1' : '0';
+        const x = (projected.x * 0.5 + 0.5) * w;
+        const y = (-projected.y * 0.5 + 0.5) * h;
+        l.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+      });
+    }
+
+    /* ---------- Resize & loop ---------- */
+    function resize() {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (!w || !h) return;
+      renderer.setSize(w, h, false);
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    new ResizeObserver(resize).observe(container);
+    resize();
+
+    const clock = new THREE.Clock();
+    const state = { g: 0.07, gini: 0.55, t: 25, playing: false, playAcc: 0, logScale: true };
+
+    // Audio ambiente que se carga automáticamente al activar el sonido.
+    const CUSTOM_AUDIO_URL = 'ambient-city.mp3';
+
+    class UrbanSoundscape {
+      constructor() {
+        this.audio = null;
+        this.master = null;
+        this.bed = null;          // murmullo continuo de carretera lejana
+        this.noiseBuffer = null;  // ruido blanco compartido para el rodamiento de los coches
+        this.custom = null;       // audio propio del usuario (reemplaza al sonido sintético)
+        this.customUrlTried = false;
+        this.activity = 0.15;
+        this.volume = 0.5;
+        this.enabled = false;
+        this.ready = false;     // el grafo de audio está completo y se puede usar
+        this.failed = false;    // si el audio falla, se apaga solo y la simulación sigue
+        this.eventTimer = 0;
+        this.updateTimer = 0;
+        this.suspendTimer = 0;
+        this.lastUpdate = 0;
+        this.lastSim = null;
+        this.onChange = null;
+      }
+
+      async start() {
+        if (this.failed) return false;
+        try {
+          if (!this.ready) this.createGraph();
+          if (!this.ready) return false;
+          if (CUSTOM_AUDIO_URL && !this.customUrlTried) {
+            this.customUrlTried = true;
+            await this.loadCustomUrl(CUSTOM_AUDIO_URL);
+          }
+          clearTimeout(this.suspendTimer);
+          if (this.audio.state !== 'running') {
+            // se reintenta resume() en cada gesto real; el límite de espera evita quedar colgado
+            await Promise.race([Promise.resolve(this.audio.resume()).catch(() => {}), new Promise((resolve) => setTimeout(resolve, 1200))]);
+          }
+          if (!this.ready || this.audio.state !== 'running') return false;
+          this.enabled = true;
+          this.setMaster(1);
+          if (this.lastSim) this.applySimulation(this.lastSim);
+          if (!this.ready) return false;
+          this.scheduleEvent(400);   // un coche pasa casi enseguida
+          return true;
+        } catch (error) {
+          this.fail(error);
+          return false;
+        }
+      }
+
+      stop() {
+        this.enabled = false;
+        clearTimeout(this.eventTimer);
+        this.eventTimer = 0;
+        this.setMaster(0);
+        clearTimeout(this.suspendTimer);
+        // tras el fundido se suspende el contexto para no gastar CPU en silencio
+        this.suspendTimer = setTimeout(() => {
+          if (this.ready && !this.enabled) Promise.resolve(this.audio.suspend()).catch(() => {});
+        }, 1500);
+      }
+
+      fail(error) {
+        console.warn('Sonido de tráfico desactivado por un error; la simulación sigue funcionando.', error);
+        this.failed = true;
+        this.ready = false;
+        this.enabled = false;
+        clearTimeout(this.eventTimer);
+        clearTimeout(this.updateTimer);
+        clearTimeout(this.suspendTimer);
+        this.eventTimer = this.updateTimer = this.suspendTimer = 0;
+        try { if (this.audio) Promise.resolve(this.audio.close()).catch(() => {}); } catch (e) {}
+        this.audio = null;
+        if (this.onChange) { try { this.onChange(); } catch (e) {} }
+      }
+
+      createGraph() {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) { this.failed = true; return; }
+        try {
+          this.audio = new Ctx();
+          this.master = this.audio.createGain();
+          this.master.gain.value = 0;
+          this.master.connect(this.audio.destination);
+
+          // 2 s de ruido blanco reutilizable (evita crear un buffer nuevo por cada coche)
+          const length = this.audio.sampleRate * 2;
+          this.noiseBuffer = this.audio.createBuffer(1, length, this.audio.sampleRate);
+          const samples = this.noiseBuffer.getChannelData(0);
+          for (let i = 0; i < length; i++) samples[i] = Math.random() * 2 - 1;
+
+          this.bed = this.createBed();
+          this.ready = true;   // solo se marca listo cuando TODO se creó bien
+        } catch (error) {
+          this.fail(error);
+        }
+      }
+
+      // Carga un audio propio (ArrayBuffer de un mp3/wav/ogg) y lo reproduce en bucle.
+      // Mientras haya audio propio, el sonido sintético de coches queda en silencio.
+      async loadCustom(arrayBuffer) {
+        try {
+          if (!this.ready) this.createGraph();
+          if (!this.ready) return false;
+          const buffer = await this.audio.decodeAudioData(arrayBuffer);
+          if (!this.ready) return false;
+          if (this.custom) {
+            try { this.custom.source.stop(); this.custom.source.disconnect(); this.custom.gain.disconnect(); } catch (e) {}
+          }
+          const source = this.audio.createBufferSource();
+          const gain = this.audio.createGain();
+          source.buffer = buffer;
+          source.loop = true;
+          gain.gain.value = 0;
+          source.connect(gain).connect(this.master);
+          source.start();
+          this.custom = { source, gain, maximumGain: 0.9 };   // 0.9 = volumen máximo de tu audio
+          if (this.enabled && this.lastSim) this.applySimulation(this.lastSim);
+          return true;
+        } catch (error) {
+          console.warn('No se pudo cargar el audio propio.', error);
+          return false;
+        }
+      }
+
+      async loadCustomUrl(url) {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          return await this.loadCustom(await response.arrayBuffer());
+        } catch (error) {
+          console.warn('No se pudo cargar ' + url, error);
+          return false;
+        }
+      }
+
+      // Murmullo grave y constante del tráfico lejano, de fondo
+      createBed() {
+        const source = this.audio.createBufferSource();
+        const filter = this.audio.createBiquadFilter();
+        const gain = this.audio.createGain();
+        source.buffer = this.noiseBuffer;
+        source.loop = true;
+        filter.type = 'lowpass';
+        filter.frequency.value = 300;
+        filter.Q.value = 0.4;
+        gain.gain.value = 0;
+        source.connect(filter).connect(gain).connect(this.master);
+        source.start();
+        return { source, filter, gain, maximumGain: 0.16 };
+      }
+
+      ramp(param, value, time = 0.7) {
+        if (!Number.isFinite(value)) return;   // un NaN en un AudioParam lanza una excepción
+        const now = this.audio.currentTime;
+        param.cancelScheduledValues(now);
+        param.setTargetAtTime(value, now, time);
+      }
+
+      setMaster(value) {
+        if (!this.ready) return;
+        try {
+          this.ramp(this.master.gain, this.enabled && !document.hidden ? value : 0, 0.5);
+        } catch (error) { this.fail(error); }
+      }
+
+      // Se llama en cada refresh(): solo guarda el estado y agenda una actualización
+      // limitada (~8/s), así arrastrar un slider ya no satura el hilo de audio.
+      updateFromSimulation(sim) {
+        this.lastSim = sim;
+        if (!this.ready || !this.enabled || this.updateTimer) return;
+        const wait = Math.max(0, 120 - (performance.now() - this.lastUpdate));
+        this.updateTimer = setTimeout(() => {
+          this.updateTimer = 0;
+          this.lastUpdate = performance.now();
+          if (this.ready && this.enabled && this.lastSim) this.applySimulation(this.lastSim);
+        }, wait);
+      }
+
+      applySimulation(sim) {
+        try {
+          const growthActivity = clamp((Math.log10(Math.max(sim.factor, 1e-4)) + 0.15) / 2.1, 0, 1);
+          const currentGrowth = clamp((sim.g + 0.05) / 0.2, 0, 1);
+          const activity = clamp(growthActivity * 0.8 + currentGrowth * 0.2, 0.08, 1);
+          if (!Number.isFinite(activity)) return;
+          this.activity = activity;   // más actividad = más coches y más seguidos
+          this.volume = 0.15 + currentGrowth * 0.85;
+          if (this.custom) {
+            this.ramp(this.bed.gain.gain, 0);
+            this.ramp(this.custom.gain.gain, this.custom.maximumGain * this.volume);
+          } else {
+            this.ramp(this.bed.gain.gain, this.bed.maximumGain * (0.25 + activity * 0.75) * this.volume);
+            this.ramp(this.bed.filter.frequency, 220 + activity * 380);
+          }
+        } catch (error) {
+          this.fail(error);
+        }
+      }
+
+      scheduleEvent(firstDelay) {
+        if (this.eventTimer || !this.enabled) return;
+        const delay = firstDelay || Math.max(450, 4600 - this.activity * 3800 + Math.random() * 2400);
+        this.eventTimer = setTimeout(() => {
+          this.eventTimer = 0;
+          if (!this.enabled) return;
+          if (!document.hidden && !this.custom) {
+            this.playCar();
+            // con mucha actividad a veces se cruzan dos coches casi a la vez
+            if (this.activity > 0.5 && Math.random() < 0.35) {
+              setTimeout(() => { if (this.ready && this.enabled && !document.hidden) this.playCar(); }, 150 + Math.random() * 700);
+            }
+          }
+          this.scheduleEvent();
+        }, delay);
+      }
+
+      // Un coche que pasa de un lado a otro: motor con efecto Doppler,
+      // rodamiento de neumáticos, soplido de aire y desplazamiento estéreo.
+      playCar() {
+        try {
+          const audio = this.audio;
+          const now = audio.currentTime + 0.02;
+          const roll = Math.random();
+          const profile = roll < 0.12
+            ? { base: 48 + Math.random() * 14, dur: 3.4 + Math.random() * 1.2, vol: 1.15, tire: 700 }     // camión / autobús
+            : roll < 0.3
+              ? { base: 115 + Math.random() * 45, dur: 1.5 + Math.random() * 0.7, vol: 1.0, tire: 1500 }  // coche rápido
+              : { base: 70 + Math.random() * 35, dur: 2.2 + Math.random() * 1.2, vol: 0.85, tire: 1100 }; // coche normal
+          const dir = Math.random() < 0.5 ? -1 : 1;
+          const d = profile.dur;
+          const mid = now + d * 0.55;   // instante en que pasa frente a nosotros
+          const level = Math.max(0.001, 0.2 * profile.vol * (0.45 + this.activity * 0.55) * this.volume);
+
+          // volumen: se acerca poco a poco, pasa y se aleja
+          const envelope = audio.createGain();
+          envelope.gain.setValueAtTime(0.0001, now);
+          envelope.gain.exponentialRampToValueAtTime(level, mid);
+          envelope.gain.exponentialRampToValueAtTime(0.0001, now + d);
+
+          // desplazamiento estéreo de un lado al otro
+          let output = envelope;
+          if (audio.createStereoPanner) {
+            const panner = audio.createStereoPanner();
+            panner.pan.setValueAtTime(-0.9 * dir, now);
+            panner.pan.linearRampToValueAtTime(0.9 * dir, now + d);
+            envelope.connect(panner);
+            output = panner;
+          }
+          output.connect(this.master);
+
+          // motor: dos osciladores graves; el tono cae al pasar (efecto Doppler)
+          const engineFilter = audio.createBiquadFilter();
+          engineFilter.type = 'lowpass';
+          engineFilter.Q.value = 0.8;
+          engineFilter.frequency.setValueAtTime(260, now);
+          engineFilter.frequency.exponentialRampToValueAtTime(950, mid);
+          engineFilter.frequency.exponentialRampToValueAtTime(300, now + d);
+          const engineGain = audio.createGain();
+          engineGain.gain.value = 0.55;
+          engineFilter.connect(engineGain).connect(envelope);
+
+          const oscillators = [[profile.base, 'sawtooth'], [profile.base * 2.01, 'triangle']].map(([frequency, type]) => {
+            const oscillator = audio.createOscillator();
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(frequency * 1.1, now);
+            oscillator.frequency.linearRampToValueAtTime(frequency * 1.07, mid - d * 0.08);
+            oscillator.frequency.exponentialRampToValueAtTime(frequency * 0.93, mid + d * 0.08);
+            oscillator.frequency.exponentialRampToValueAtTime(frequency * 0.88, now + d);
+            oscillator.connect(engineFilter);
+            oscillator.start(now);
+            oscillator.stop(now + d + 0.1);
+            return oscillator;
+          });
+
+          // rodamiento de los neumáticos sobre el asfalto
+          const tire = audio.createBufferSource();
+          tire.buffer = this.noiseBuffer;
+          tire.loop = true;
+          const tireFilter = audio.createBiquadFilter();
+          tireFilter.type = 'bandpass';
+          tireFilter.Q.value = 0.8;
+          tireFilter.frequency.setValueAtTime(profile.tire * 0.7, now);
+          tireFilter.frequency.exponentialRampToValueAtTime(profile.tire * 1.3, mid);
+          tireFilter.frequency.exponentialRampToValueAtTime(profile.tire * 0.6, now + d);
+          const tireGain = audio.createGain();
+          tireGain.gain.value = 1.1;
+          tire.connect(tireFilter).connect(tireGain).connect(envelope);
+          tire.start(now, Math.random() * 1.5);
+          tire.stop(now + d + 0.1);
+
+          // soplido de aire justo en el momento de cruzar
+          const whoosh = audio.createBufferSource();
+          whoosh.buffer = this.noiseBuffer;
+          whoosh.loop = true;
+          const whooshFilter = audio.createBiquadFilter();
+          whooshFilter.type = 'bandpass';
+          whooshFilter.Q.value = 0.6;
+          whooshFilter.frequency.setValueAtTime(2600, mid - d * 0.2);
+          whooshFilter.frequency.exponentialRampToValueAtTime(900, mid + d * 0.25);
+          const whooshGain = audio.createGain();
+          whooshGain.gain.setValueAtTime(0.0001, mid - d * 0.2);
+          whooshGain.gain.exponentialRampToValueAtTime(level * 0.45, mid);
+          whooshGain.gain.exponentialRampToValueAtTime(0.0001, mid + d * 0.25);
+          whoosh.connect(whooshFilter).connect(whooshGain).connect(output);
+          whoosh.start(mid - d * 0.2, Math.random() * 1.5);
+          whoosh.stop(mid + d * 0.26);
+
+          tire.onended = () => {
+            try {
+              oscillators.forEach((o) => o.disconnect());
+              engineFilter.disconnect(); engineGain.disconnect();
+              tire.disconnect(); tireFilter.disconnect(); tireGain.disconnect();
+              whoosh.disconnect(); whooshFilter.disconnect(); whooshGain.disconnect();
+              envelope.disconnect(); output.disconnect();
+            } catch (e) {}
+          };
+        } catch (error) {
+          this.fail(error);
+        }
+      }
+
+      handleVisibility() {
+        this.setMaster(1);
+      }
+    }
+
+    let animErrors = 0;
+    function animate() {
+      requestAnimationFrame(animate);   // se agenda primero: un error ya no mata el bucle
+      try {
+      const dt = Math.min(clock.getDelta(), 0.1);
+      if (state.playing) {
+        state.playAcc += dt;
+        if (state.playAcc >= 0.3) {
+          state.playAcc = 0;
+          if (state.t >= parseInt(yearsEndInput.value, 10)) {
+            setPlaying(false);
+          } else {
+            state.t += 1;
+            yearsInput.value = String(state.t);
+            refresh();
+          }
+        }
+      }
+      updateEnvironment(dt);
+      updatePool(mainPool, dt, env.speed);
+      districtPools.forEach((p) => updatePool(p, dt, env.speed));
+      controls.update();
+      renderer.render(scene, camera);
+      updateLabels();
+      } catch (error) {
+        if (animErrors++ < 5) console.error('Error en el bucle de animación (la simulación continúa):', error);
+      }
+    }
+
+    /* =====================================================================
+       4. DASHBOARD
+       ===================================================================== */
+    const $ = (id) => document.getElementById(id);
+    const growthInput = $('growth');
+    const giniInput = $('gini');
+    const yearsInput = $('years');
+    const yearsEndInput = $('years-end');
+    const soundscape = new UrbanSoundscape();
+    const soundButton = $('btn-sound');
+
+    let soundShown = null;   // null = todavía sin dibujar
+    function renderSoundButton() {
+      const state = soundscape.failed ? 'failed' : soundscape.enabled ? 'on' : 'off';
+      if (state === soundShown) return;   // solo toca el DOM cuando el estado cambia de verdad
+      soundShown = state;
+      const on = state === 'on';
+      const label = on ? 'Desactivar sonido ambiente'
+        : state === 'failed' ? 'El navegador no pudo iniciar el audio'
+        : 'Activar sonido ambiente';
+      soundButton.setAttribute('aria-pressed', String(on));
+      soundButton.setAttribute('aria-label', label);
+      soundButton.title = label;
+      // mismo estilo de "encendido" que el botón de rotación automática
+      soundButton.classList.toggle('ring-emerald-400/60', on);
+      soundButton.classList.toggle('text-emerald-300', on);
+      soundButton.classList.toggle('opacity-50', state === 'failed');
+      soundButton.innerHTML = `<i data-lucide="${on ? 'volume-2' : 'volume-x'}" class="w-[18px] h-[18px]"></i>`;
+      lucide.createIcons();
+    }
+    soundscape.onChange = renderSoundButton;
+    renderSoundButton();   // estado inicial coherente: apagado hasta que el audio arranque de verdad
+
+    // Desbloqueo del audio: el navegador solo lo permite tras un gesto real del usuario,
+    // así que se reintenta en cada gesto hasta que suene (salvo que lo silencies a mano).
+    let soundMutedByUser = false;
+    let soundStarting = false;
+    async function activateSound() {
+      if (soundMutedByUser || soundStarting || soundscape.enabled || soundscape.failed) return;
+      soundStarting = true;
+      try { await soundscape.start(); } finally { soundStarting = false; }
+      renderSoundButton();
+    }
+
+    soundButton.addEventListener('click', async () => {
+      if (soundscape.enabled) {
+        soundMutedByUser = true;
+        soundscape.stop();
+        renderSoundButton();
+      } else {
+        soundMutedByUser = false;
+        await activateSound();
+      }
+    });
+    document.addEventListener('visibilitychange', () => soundscape.handleVisibility());
+
+    ['pointerdown', 'touchend', 'keydown', 'click'].forEach((type) => document.addEventListener(type, activateSound, { passive: true }));
+
+    const povertyLinePlugin = {
+      id: 'povertyLine',
+      afterDatasetsDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        const y = scales.y.getPixelForValue(POVERTY_LINE);
+        if (y < chartArea.top || y > chartArea.bottom) return;
+        ctx.save();
+        ctx.strokeStyle = '#fb7185';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(chartArea.left, y);
+        ctx.lineTo(chartArea.right, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = '600 10px Inter, sans-serif';
+        const label = 'Línea de pobreza · $1.200';
+        const tw = ctx.measureText(label).width;
+        ctx.fillStyle = 'rgba(11,17,32,0.85)';
+        ctx.fillRect(chartArea.right - tw - 10, y - 17, tw + 8, 14);
+        ctx.fillStyle = '#fda4af';
+        ctx.fillText(label, chartArea.right - tw - 6, y - 6);
+        ctx.restore();
+      },
+    };
+
+    const logTick = (v) => {
+      if (v <= 0) return '';
+      const m = v / Math.pow(10, Math.floor(Math.log10(v) + 1e-9));
+      return [1, 2, 5].some((k) => Math.abs(m - k) < 0.01) ? moneyShort(v) : '';
+    };
+
+    const chart = new Chart($('chart'), {
+      type: 'bar',
+      data: {
+        labels: ['Clase baja (50%)', 'Clase media (40%)', 'Clase alta (10%)'],
+        datasets: [{
+          label: 'Ingreso anual por persona',
+          data: [0, 0, 0],
+          backgroundColor: ['#EEE9DA', '#BDCDD6', '#6096B4'],
+          borderColor: ['#EEE9DA', '#BDCDD6', '#6096B4'],
+          borderWidth: 1.5,
+          borderRadius: 8,
+          maxBarThickness: 64,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 280 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+            callbacks: {
+              label: (c) => ` ${money(c.parsed.y)} / año · ${num(c.parsed.y / POVERTY_LINE, 1)}× línea de pobreza`,
+            },
+          },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#cbd5e1', font: { size: 11, family: 'Inter' } } },
+          y: {
+            type: 'logarithmic',
+            min: 100,
+            grid: { color: 'rgba(148,163,184,0.12)' },
+            ticks: { color: '#94a3b8', font: { size: 10, family: 'JetBrains Mono' }, callback: logTick, autoSkip: false },
+          },
+        },
+      },
+      plugins: [povertyLinePlugin],
+    });
+
+    function setScale(log) {
+      state.logScale = log;
+      const y = chart.options.scales.y;
+      y.type = log ? 'logarithmic' : 'linear';
+      y.min = log ? 100 : 0;
+      y.ticks.callback = log ? logTick : (v) => moneyShort(v);
+      $('scale-log').className = `px-2 py-1 rounded-md ${log ? 'bg-slate-600 text-white' : 'text-slate-400'}`;
+      $('scale-lin').className = `px-2 py-1 rounded-md ${!log ? 'bg-slate-600 text-white' : 'text-slate-400'}`;
+      $('scale-log').setAttribute('aria-pressed', String(log));
+      $('scale-lin').setAttribute('aria-pressed', String(!log));
+      chart.update();
+    }
+    $('scale-log').addEventListener('click', () => setScale(true));
+    $('scale-lin').addEventListener('click', () => setScale(false));
+
+    const LOWER_DESC = [
+      'Asentamiento informal: chabolas de chapa, calles de tierra, sin alumbrado ni servicios básicos.',
+      'Viviendas autoconstruidas de ladrillo sin terminar; electricidad irregular y calles todavía sin pavimentar.',
+      'Viviendas modulares consolidadas, calles pavimentadas y primeros puntos de alumbrado público.',
+      'Barrio consolidado: casas modernas y edificios bajos con servicios completos, alumbrado y arbolado.',
+      'Barrio residencial moderno: bloques limpios con paneles solares, parques y calles arboladas.',
+    ];
+    const MIDDLE_DESC = [
+      'Bloques de pisos sencillos y grises, con poco espacio verde.',
+      'Edificios de 5 a 7 plantas con patios y primeros árboles.',
+      'Complejos residenciales de altura media con zonas verdes y parque central.',
+      'Complejos de alta calidad con jardines en azotea y amplias zonas verdes.',
+    ];
+    const UPPER_DESC = [
+      'Casas grandes con jardín y piscina.',
+      'Primeras torres de oficinas entre las mansiones.',
+      'Distrito financiero de torres de cristal.',
+      'Skyline de rascacielos imponentes con una torre emblemática.',
+    ];
+
+    const TONES = {
+      emerald: { ring: 'ring-emerald-400/30', bg: 'bg-emerald-500/10', text: 'text-emerald-300' },
+      sky: { ring: 'ring-sky-400/30', bg: 'bg-sky-500/10', text: 'text-sky-300' },
+      amber: { ring: 'ring-amber-400/30', bg: 'bg-amber-500/10', text: 'text-amber-300' },
+      rose: { ring: 'ring-rose-400/30', bg: 'bg-rose-500/10', text: 'text-rose-300' },
+      slate: { ring: 'ring-white/10', bg: 'bg-slate-800/60', text: 'text-slate-200' },
+    };
+
+    function buildExplanation(sim) {
+      const [yL, yM, yA] = sim.incomes;
+      const pov = sim.poverty;
+      const start = simulate(sim.gRaw, sim.gini, 0);
+      const gap = yA / yL;
+      const giniTxt = num(sim.gini, 2);
+      const gTxt = signedPct(sim.g, 1);
+      const yrs = yearsToEradicate(sim.gRaw, sim.gini);
+      let tone, icon, title, body;
+
+      if (sim.t === 0) {
+        tone = 'slate'; icon = 'flag'; title = 'Año 0: el punto de partida';
+        body = `Todas las ciudades parten del mismo PIB (${moneyBig(BASE_GDP)}). Con un Gini de ${giniTxt}, la clase baja ingresa ${money(yL)} al año y el ${pct(pov)} de la población está bajo la línea de pobreza. Al mover el tiempo o pulsar reproducir se ve el efecto acumulado del crecimiento.`;
+      } else if (pov < 0.0005) {
+        if (sim.gini >= 0.45) {
+          tone = 'emerald'; icon = 'trending-up'; title = 'Desigualdad alta, pobreza cero';
+          body = `Aunque la clase alta gana ${num(gap, 1)} veces más que la baja, ${sim.t} años creciendo al ${gTxt} anual han multiplicado la economía por ${num(sim.factor, 1)}. La clase baja ingresa ${money(yL)} al año (${num(yL / POVERTY_LINE, 1)} veces la línea de pobreza): la pobreza absoluta ha sido erradicada y el distrito bajo vive en viviendas consolidadas con servicios completos.`;
+        } else {
+          tone = 'emerald'; icon = 'sparkles'; title = 'Prosperidad generalizada';
+          body = `El crecimiento sostenido (${gTxt} anual durante ${sim.t} años) ha multiplicado la riqueza por ${num(sim.factor, 1)}. La clase baja ingresa ${money(yL)}, ${num(yL / POVERTY_LINE, 1)} veces la línea de pobreza: nadie vive ya en pobreza absoluta. El motor fue el crecimiento, no solo el reparto.`;
+        }
+      } else if (sim.g < 0) {
+        tone = 'rose'; icon = 'trending-down';
+        title = sim.gini < 0.35 ? 'Igualdad en la miseria' : 'Recesión: todos pierden';
+        body = `La economía se ha contraído un ${pct(1 - sim.factor, 0)} en ${sim.t} años. ${sim.gini < 0.35
+          ? 'El reparto es muy igualitario, pero se reparte un pastel cada vez más pequeño: '
+          : 'La contracción golpea primero a los más vulnerables: '}el ${pct(pov)} de la población no cubre sus necesidades básicas (al inicio era el ${pct(start.poverty)}).`;
+      } else if (sim.g < 0.025) {
+        tone = 'amber'; icon = 'hourglass';
+        title = sim.gini < 0.35 ? 'Igualdad en la miseria' : 'Estancamiento';
+        body = `${sim.gini < 0.35
+          ? `La ciudad es muy igualitaria (la clase alta gana solo ${num(gap, 1)} veces más que la baja), pero con un crecimiento de apenas ${gTxt} anual el pastel casi no crece. `
+          : `Con un crecimiento de apenas ${gTxt} anual, la riqueza apenas avanza. `}La clase baja ingresa ${money(yL)} y el ${pct(pov)} sigue en pobreza absoluta${Number.isFinite(yrs) ? `; a este ritmo harían falta ${yrs} años para erradicarla.` : '.'}`;
+      } else {
+        tone = pov < 0.1 ? 'sky' : 'amber'; icon = 'rocket'; title = 'Crecimiento en marcha';
+        body = `Un crecimiento del ${gTxt} anual ha multiplicado la riqueza por ${num(sim.factor, 1)} en ${sim.t} años. La pobreza absoluta ha bajado del ${pct(start.poverty)} inicial al ${pct(pov)}, aunque la clase alta gane ${num(gap, 1)} veces más que la baja. ${Number.isFinite(yrs) ? `A este ritmo, la pobreza desaparecerá por completo en el año ${yrs}.` : ''}`;
+      }
+
+      const t = TONES[tone];
+      return `
+        <div class="fade-in rounded-2xl ${t.bg} ring-1 ${t.ring} p-4">
+          <p class="flex items-center gap-2 text-base font-bold ${t.text}"><i data-lucide="${icon}" class="w-5 h-5"></i>${title}</p>
+          <p class="mt-2 text-sm text-slate-200 leading-relaxed text-pretty">${body}</p>
+        </div>`;
+    }
+
+    let lastExplainKey = '';
+    function updateRangeFill(input) {
+      const min = Number(input.min);
+      const max = Number(input.max);
+      const value = Number(input.value);
+      const fill = ((value - min) / (max - min)) * 100;
+      input.style.setProperty('--fill', `${Math.max(0, Math.min(100, fill))}%`);
+    }
+
+    let inputMode = 'manual';
+    let lastPublishedBaseline = '';
+    let lastSensorTimestamp = 0;
+    let sensorPollInFlight = false;
+
+    async function publishSensorBaseline() {
+      const growth = Number(growthInput.value);
+      const gini = Number(giniInput.value);
+      const key = `${growth}|${gini}`;
+      if (key === lastPublishedBaseline) return;
+      lastPublishedBaseline = key;
+      try {
+        await fetch('/api/sensor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+          body: JSON.stringify({ type: 'baseline', growth, gini }),
+        });
+      } catch (error) {
+        console.warn('No se pudo publicar la referencia para el sensor:', error);
+      }
+    }
+
+    function setInputMode(mode) {
+      inputMode = mode;
+      const sensorMode = mode === 'sensor';
+      growthInput.disabled = sensorMode;
+      giniInput.disabled = sensorMode;
+      document.querySelectorAll('.preset').forEach((button) => {
+        button.disabled = sensorMode;
+        button.classList.toggle('opacity-40', sensorMode);
+        button.classList.toggle('cursor-not-allowed', sensorMode);
+      });
+      $('mode-manual').setAttribute('aria-pressed', String(!sensorMode));
+      $('mode-sensor').setAttribute('aria-pressed', String(sensorMode));
+      $('mode-manual').classList.toggle('ring-emerald-400/50', !sensorMode);
+      $('mode-sensor').classList.toggle('ring-emerald-400/50', sensorMode);
+      $('sensor-connection-status').textContent = sensorMode ? 'Esperando Android…' : 'Control manual activo';
+      $('sensor-connection-status').className = `text-[11px] font-medium ${sensorMode ? 'text-amber-200' : 'text-white/50'}`;
+      $('sensor-mode-help').textContent = sensorMode
+        ? 'El Android controla el crecimiento por inclinación y modifica el Gini de forma acumulativa: reducir desigualdad se vuelve progresivamente más difícil. Volver al centro detiene el cambio, pero no lo revierte.'
+        : 'Usa los controles manuales para modificar crecimiento y desigualdad.';
+      if (!sensorMode) publishSensorBaseline();
+    }
+
+    async function pollSensor() {
+      if (inputMode !== 'sensor' || sensorPollInFlight) return;
+      sensorPollInFlight = true;
+      try {
+        const response = await fetch('/api/sensor', { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const connected = data.connected && Number.isFinite(data.updatedAt)
+          && Date.now() - data.updatedAt < 1800;
+        if (!connected) {
+          $('sensor-connection-status').textContent = 'Esperando señal del Android';
+          $('sensor-connection-status').className = 'text-[11px] font-medium text-amber-200';
+          return;
+        }
+        $('sensor-connection-status').textContent = 'Android conectado';
+        $('sensor-connection-status').className = 'text-[11px] font-medium text-emerald-300';
+        if (data.updatedAt !== lastSensorTimestamp) {
+          lastSensorTimestamp = data.updatedAt;
+          growthInput.value = String(clamp(Number(data.growth), -5, 8));
+          giniInput.value = String(clamp(Number(data.gini), 0.25, 0.59));
+          refresh();
+        }
+      } catch (error) {
+        $('sensor-connection-status').textContent = 'No se pudo conectar';
+        $('sensor-connection-status').className = 'text-[11px] font-medium text-rose-300';
+        console.warn('Error leyendo el sensor:', error);
+      } finally {
+        sensorPollInFlight = false;
+      }
+    }
+
+    function refresh() {
+      state.g = parseFloat(growthInput.value) / 100;
+      state.gini = parseFloat(giniInput.value);
+      state.t = parseInt(yearsInput.value, 10);
+      [growthInput, giniInput, yearsInput, yearsEndInput].forEach(updateRangeFill);
+      const sim = simulate(state.g, state.gini, state.t);
+      const [yL, yM, yA] = sim.incomes;
+
+      $('growth-out').textContent = signedPct(state.g, 1);
+      $('growth-out').className = `font-mono text-sm font-bold ${state.g < 0 ? 'text-rose-300' : state.g < 0.025 ? 'text-amber-300' : 'text-emerald-300'}`;
+      $('gini-out').textContent = num(state.gini, 2);
+      $('gini-out').className = `font-mono text-sm font-bold ${state.gini >= 0.5 ? 't-bad' : state.gini >= 0.35 ? 't-warn' : 't-good'}`;
+      $('years-out').textContent = `${state.t} ${state.t === 1 ? 'año' : 'años'}`;
+      $('years-end-out').textContent = yearsEndInput.value;
+      const adj = (sim.g - sim.gRaw) * 100;
+      $('coupling-note').textContent = adj < -0.005
+        ? `Crecimiento efectivo hoy: ${signedPct(sim.g, 1)} (−${num(-adj, 2)} pp por redistribuir). Cada 0,01 de Gini que baja bajo 0,40 resta ≈${num(giniBeta(sim.mean), 2)} pp de crecimiento anual.`
+        : `Sin costo de redistribución: con Gini ≥ 0,40 el crecimiento efectivo (${signedPct(sim.g, 1)}) iguala al potencial. Cada 0,01 de Gini que baja bajo 0,40 resta ≈${num(giniBeta(sim.mean), 2)} pp.`;
+      $('hud-low').textContent = moneyShort(yL) + '/año';
+      const bench = simulate(state.g, 0.25, state.t);
+      const rel = yL / bench.incomes[0];
+      $('m-bench').textContent = `${num(rel, 2)}×`;
+      $('m-bench').className = `mt-0.5 font-mono text-lg font-semibold ${rel >= 1 ? 'text-emerald-300' : 'text-rose-300'}`;
+      $('m-bench-sub').textContent = `${moneyShort(yL)} vs ${moneyShort(bench.incomes[0])}/año · ${rel >= 1 ? 'crecer sin redistribuir deja mejor a la clase baja' : 'redistribuir deja mejor a la clase baja'}`;
+
+      $('hud-year').textContent = String(state.t);
+      $('hud-gdp').textContent = moneyBig(sim.gdp);
+      $('hud-poverty').textContent = pct(sim.poverty);
+      $('hud-poverty').className = `font-mono font-semibold ${sim.poverty < 0.0005 ? 'text-emerald-300' : 'text-rose-300'}`;
+
+      $('m-gdp').textContent = moneyBig(sim.gdp);
+      $('m-gdp-sub').textContent = `×${num(sim.factor, 2)} desde el año 0`;
+      $('m-gdp-sub').className = `text-[11px] ${sim.factor >= 1 ? 'text-emerald-300' : 'text-rose-300'}`;
+
+      $('m-poverty').textContent = pct(sim.poverty);
+      $('m-poverty').className = `mt-1 font-mono text-lg font-bold ${sim.poverty < 0.0005 ? 'text-emerald-300' : sim.poverty < 0.1 ? 'text-amber-300' : 'text-rose-300'}`;
+      $('m-poverty-bar').style.width = `${Math.min(100, sim.poverty * 100)}%`;
+      $('m-poverty-sub').textContent = sim.poverty < 0.0005 ? 'Erradicada' : `${num(sim.poverty * POPULATION)} personas`;
+
+      const ratioTxt = (y) => `${num(y / POVERTY_LINE, 1)}× línea`;
+      const incomeTone = (y) => {
+        const ratio = y / POVERTY_LINE;
+        return ratio >= 1 ? 'text-emerald-300' : ratio >= 0.5 ? 'text-amber-300' : 'text-rose-300';
+      };
+      $('m-low').textContent = moneyShort(yL);
+      $('m-low-sub').textContent = ratioTxt(yL);
+      $('m-low-sub').className = `text-[10px] ${GROUPS[0].spread[0] * yL >= POVERTY_LINE ? 'text-emerald-300' : 'text-rose-300'}`;
+      $('m-mid').textContent = moneyShort(yM);
+      $('m-mid-sub').textContent = ratioTxt(yM);
+      $('m-mid-sub').className = `ml-2 text-[12px] ${incomeTone(yM)}`;
+      $('m-high').textContent = moneyShort(yA);
+      $('m-high-sub').textContent = ratioTxt(yA);
+      $('m-high-sub').className = `ml-2 text-[12px] ${incomeTone(yA)}`;
+      $('m-ratio').textContent = `${num(yA / yL, 1)}×`;
+
+      const yrs = yearsToEradicate(state.g, state.gini);
+      if (sim.poverty < 0.0005) {
+        $('m-years').textContent = 'Logrado';
+        $('m-years').className = 'mt-1 font-mono text-lg font-bold text-emerald-300';
+        $('m-years-sub').textContent = yrs === 0 ? 'desde el inicio' : `en el año ${yrs}`;
+      } else if (!Number.isFinite(yrs)) {
+        $('m-years').textContent = 'Nunca';
+        $('m-years').className = 'mt-1 font-mono text-lg font-bold text-rose-300';
+        $('m-years-sub').textContent = 'sin crecimiento no llega';
+      } else {
+        $('m-years').textContent = `Año ${yrs}`;
+        $('m-years').className = 'mt-1 font-mono text-lg font-bold text-amber-300';
+        $('m-years-sub').textContent = `faltan ${yrs - state.t} años`;
+      }
+
+      chart.data.datasets[0].data = [yL, yM, yA];
+      chart.update();
+
+      applyCity(sim);
+      try { soundscape.updateFromSimulation(sim); } catch (error) { console.warn(error); }
+      labelEls.forEach((l, i) => {
+        l.value.textContent = `${moneyShort(sim.incomes[i])}/año · ${num(sim.incomes[i] / POVERTY_LINE, 1)}×`;
+      });
+
+      const explainKey = [state.g, state.gini, state.t].join('|');
+      if (explainKey !== lastExplainKey) {
+        lastExplainKey = explainKey;
+        $('explainer').innerHTML = buildExplanation(sim);
+        lucide.createIcons();
+      }
+      if (inputMode === 'manual') publishSensorBaseline();
+    }
+
+    $('mode-manual').addEventListener('click', () => setInputMode('manual'));
+    $('mode-sensor').addEventListener('click', () => setInputMode('sensor'));
+    setInputMode('manual');
+    window.setInterval(pollSensor, 120);
+
+    function setPlaying(on) {
+      state.playing = on;
+      const btn = $('btn-play');
+      btn.innerHTML = `<i data-lucide="${on ? 'pause' : 'play'}" class="w-4 h-4"></i>`;
+      btn.setAttribute('aria-label', on ? 'Pausar la evolución' : 'Reproducir la evolución año a año');
+      lucide.createIcons();
+    }
+    $('btn-play').addEventListener('click', () => {
+      activateSound();
+      if (!state.playing) {
+        const end = parseInt(yearsEndInput.value, 10);
+        if (state.t >= end) {
+          yearsInput.value = String(state.playFrom < end ? state.playFrom : 0);
+          refresh();
+        }
+        state.playFrom = state.t;
+      }
+      state.playAcc = 0;
+      setPlaying(!state.playing);
+    });
+
+    [growthInput, giniInput].forEach((el) => el.addEventListener('input', () => {
+      activateSound();
+      refresh();
+    }));
+    yearsInput.addEventListener('input', () => {
+      activateSound();
+      if (state.playing) setPlaying(false);
+      refresh();
+    });
+
+    document.querySelectorAll('.preset').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        activateSound();
+        growthInput.value = btn.dataset.g;
+        giniInput.value = btn.dataset.gini;
+        yearsInput.value = btn.dataset.t;
+        if (state.playing) setPlaying(false);
+        refresh();
+      });
+    });
+
+    yearsEndInput.addEventListener('input', refresh);
+    $('btn-night').addEventListener('click', (e) => {
+      const btn = e.currentTarget;
+      env.targetNight = env.targetNight > 0.5 ? 0 : 1;
+      const isNight = env.targetNight === 1;
+      document.body.classList.toggle('day-mode', !isNight);
+      btn.setAttribute('aria-pressed', String(isNight));
+      btn.setAttribute('aria-label', isNight ? 'Cambiar a vista diurna' : 'Cambiar a vista nocturna');
+      btn.innerHTML = `<i data-lucide="${isNight ? 'sun' : 'moon'}" class="w-5 h-5"></i>`;
+      lucide.createIcons();
+    });
+    $('btn-rotate').addEventListener('click', (e) => {
+      controls.autoRotate = !controls.autoRotate;
+      const btn = e.currentTarget;
+      btn.setAttribute('aria-pressed', String(controls.autoRotate));
+      btn.classList.toggle('ring-emerald-400/60', controls.autoRotate);
+      btn.classList.toggle('text-emerald-300', controls.autoRotate);
+    });
+    $('btn-reset').addEventListener('click', () => {
+      camera.position.copy(CAMERA_HOME);
+      controls.target.set(0, 2, 0);
+      controls.update();
+    });
+
+    /* ---------- Presentación inicial (datos: Banco Mundial PIP, línea $3/día) ---------- */
+    const CASES = {
+      asia: [
+        { n: 'China', y: '1981 → 2022', p: [97, 0], g: [0.282, 0.360], m: [1.3, 17.2] },
+        { n: 'Vietnam', y: '1992 → 2022', p: [57.5, 1.6], g: [0.357, 0.361], m: [3.6, 16.6] },
+        { n: 'Indonesia', y: '1984 → 2025', p: [86.2, 4.0], g: [0.323, 0.344], m: [2.0, 8.6] },
+      ],
+      latam: [
+        { n: 'Costa Rica', y: '1981 → 2025', p: [33.5, 0.8], g: [0.475, 0.455], m: [6.5, 34.1] },
+        { n: 'Panamá', y: '1979 → 2024', p: [15.6, 3.1], g: [0.487, 0.497], m: [12.2, 28.7] },
+        { n: 'Colombia', y: '1980 → 2024', p: [28.5, 8.5], g: [0.551, 0.544], m: [9.7, 19.7] },
+        { n: 'India', y: '1977 → 2022', p: [59.7, 5.3], g: [0.297, 0.255], m: [3.2, 6.4], hl: true,
+          note: 'El caso contrario: más igualdad, pero el ingreso medio apenas se duplicó y sigue en $6,4 al día (Costa Rica: $34). Igualdad con ingresos bajos no es el objetivo.' },
+      ],
+    };
+    const caseRow = (c) => `
+      <div class="py-3 border-t hairline ${c.hl ? 'rounded-xl bg-amber-400/10 ring-1 ring-amber-300/30 px-3 my-2' : ''}">
+        <div class="flex flex-wrap items-baseline justify-between gap-x-4">
+          <span class="text-[15px] font-semibold">${c.n} <span class="text-white/40 font-normal text-[12px]">${c.y}</span></span>
+          <span class="text-[12px] text-white/50 font-mono">Gini ${num(c.g[0], 2)} → ${num(c.g[1], 2)} · ingreso medio $${num(c.m[0], 1)} → $${num(c.m[1], 1)}/día</span>
+        </div>
+        ${c.p.map((v, k) => `<div class="mt-1.5 flex items-center gap-2"><div class="h-2 rounded-full" style="width:${Math.max(0.8, v * 0.75)}%;background:${k ? '#6ee7b7' : '#fb7185'}"></div><span class="text-[12px] font-mono ${k ? 'text-emerald-300' : 'text-rose-300'}">${num(v, 1)}%</span></div>`).join('')}
+        ${c.note ? `<p class="mt-2 text-[13px] text-amber-200 leading-snug">${c.note}</p>` : ''}
+      </div>`;
+    const EURO = [
+      ['Suecia', [3.02, 1.28, 2.03]], ['Dinamarca', [3.03, 1.84, 1.43]],
+      ['Alemania', [4.90, 1.88, 2.04]], ['Francia', [3.94, 1.65, 1.17]],
+    ];
+    const euroRow = ([n, v]) => `
+      <div class="py-2 border-t hairline grid grid-cols-[84px_1fr] gap-3 items-center">
+        <span class="text-[14px] font-semibold">${n}</span>
+        <div class="grid gap-1">${v.map((x, k) => `<div class="flex items-center gap-2"><div class="h-1.5 rounded-full" style="width:${x * 15}%;background:${['#6ee7b7', '#fb7185', '#fcd34d'][k]}"></div><span class="text-[11px] font-mono text-white/60">${num(x, 1)}%</span></div>`).join('')}</div>
+      </div>`;
+    const H = (t) => `<h2 class="text-3xl sm:text-4xl font-semibold tracking-tight text-balance leading-[1.08]">${t}</h2>`;
+    const P = (t) => `<p class="mt-4 text-[15px] text-white/60 leading-relaxed text-pretty">${t}</p>`;
+    const SRC = (t) => `<p class="mt-5 text-[11px] text-white/35">${t}</p>`;
+    const CARD = (a, b, c) => `<div class="glass p-5"><p class="text-[12px] text-white/50">${a}</p><p class="mt-1 font-mono text-2xl font-semibold">${b}</p><p class="mt-1 text-[12px] text-white/50 leading-snug">${c}</p></div>`;
+    const SLIDES = [
+      () => `<p class="text-[13px] font-medium t-good">La tesis</p>${H('El enemigo no es la desigualdad. Es la pobreza absoluta.')}
+        ${P('Un pastel que crece rápido puede dar más a los pobres que uno pequeño repartido en partes iguales. Primero, lo que ocurrió en economías reales.')}
+        <div class="mt-6 glass p-5"><p class="text-[12px] text-white/50 mb-1">Población bajo $3 al día · rojo = inicio, verde = fin</p>${CASES.asia.map(caseRow).join('')}</div>
+        ${SRC('Fuente: Banco Mundial, Poverty and Inequality Platform. El Gini subió algo (China +0,08; Vietnam e Indonesia, casi nada) y aun así la pobreza extrema casi desapareció.')}`,
+      () => `<p class="text-[13px] font-medium t-good">Latinoamérica y un contraste</p>${H('Sube el ingreso medio, cae la pobreza. India muestra el contraste.')}
+        ${P('En los tres países latinoamericanos el Gini cambió poco (entre −0,02 y +0,01) mientras el ingreso medio se multiplicó entre 2 y 5 veces.')}
+        <div class="mt-6 glass p-5">${CASES.latam.map(caseRow).join('')}</div>
+        ${SRC('Fuente: Banco Mundial PIP. Ingreso medio en dólares PPA por día; pobreza bajo $3 al día.')}`,
+      () => `<p class="text-[13px] font-medium t-good">La línea de tiempo</p>${H('Europa creció siendo libre. Después agrandó el Estado.')}
+        ${P('Suecia es el caso más documentado: el gasto público pasó de cerca del 20% del PIB en 1950 a más del 50% en 1975 y llegó al 72% en 1993. Ese año tuvo un déficit de 11–13% del PIB y la deuda pasó de 41% (1990) a 73% (1996).')}
+        ${P('Luego recortó, fijó un techo de gasto (1997) y una meta de superávit: la deuda bajó a 37% del PIB en 2011. La crisis forzó la corrección.')}
+        <div class="mt-5 glass p-5">
+          <p class="text-[12px] text-white/50 mb-1">Crecimiento anual del PIB por persona · <span class="text-emerald-300">1950–73</span> · <span class="text-rose-300">1973–95</span> · <span class="text-amber-300">1995–2018</span></p>
+          ${EURO.map(euroRow).join('')}
+        </div>
+        ${P('Hoy el costo se ve en las pensiones: Dinamarca aprobó en 2025 subir la edad de jubilación a 70 años en 2040 (indexada a la esperanza de vida desde 2006) y Francia la subió a 64 en 2023. Las proyecciones de largo plazo apuntan en la misma dirección: Gokhale (NCPA/Cato, 2009, con datos de Eurostat) estimó que los compromisos futuros no financiados de la UE equivalían a cerca de 4 veces el PIB; en Suecia, más de 400% frente a una deuda oficial de 39%. Otros métodos dan cifras menores: la deuda implícita de pensiones va de cerca de 70% a unos 350% del PIB según país y método (BIS).')}
+        ${SRC('Fuentes: Maddison Project 2020; Gokhale/NCPA 2009 (vía Realtid); CEPR/VoxEU; Oxford UP (políticas nórdicas); Riksbank; BIS; CNN y AFP. Nota: toda Europa creció menos tras 1973, al terminar la reconstrucción de posguerra, así que el Estado grande no es la única explicación.')}`,
+      () => `<p class="text-[13px] font-medium t-good">¿Cuánto cuesta redistribuir?</p>${H('Cada punto menos de Gini resta crecimiento: unas 0,1 pp al año.')}
+        ${P('<b class="text-white">pp = puntos porcentuales.</b> Si una economía crece 5,0% y pierde 0,1 pp, pasa a crecer 4,9%. Parece poco, pero se acumula.')}
+        ${P('Con datos de 152 países (1980–2018) se encadenan dos relaciones. El índice de tamaño del Estado del Fraser Institute va de 0 a 10; a mayor puntaje, Estado más pequeño.')}
+        <div class="mt-5 grid sm:grid-cols-3 gap-3">
+          ${CARD('1. Estado y crecimiento (economías emergentes)', '−0,28 pp', 'por cada punto del índice que el Estado crece. IC 95%: 0,01 a 0,56.')}
+          ${CARD('2. Estado y Gini (países ricos)', '−2,5 pts', 'de Gini por cada punto del índice que el Estado crece. IC 95%: 1,9 a 3,0.')}
+          ${CARD('3. Resultado', '≈ 0,1 pp', 'de crecimiento por cada punto que baja el Gini. En países de ingreso alto, la medición directa da +0,09.')}
+        </div>
+        ${P('Ejemplo: bajar el Gini de 0,40 a 0,25 (15 puntos) resta ≈1,5 pp: la economía crece 3,5% en vez de 5,0%. En 25 años, la ciudad se multiplica por 2,4 en vez de 3,4.')}
+        ${SRC('Fuentes: Maddison 2020, WIID, EFW. Son asociaciones entre países, no efectos causales probados, y para economías emergentes asumimos que el Estado redistribuye como en los países ricos. El punto de partida (Gini 0,40) es el Gini típico de la muestra (media 0,39). Por encima de 0,40 no se suma crecimiento extra; la simulación aplica el costo entre Gini 0,25 y 0,40.')}`,
+      () => `<p class="text-[13px] font-medium t-good">La simulación</p>${H('Cualquier combinación de reparto y ritmo se puede probar.')}
+        ${P('Se ajustan el crecimiento potencial, el Gini y el tiempo. El crecimiento efectivo baja automáticamente cuando baja el Gini, con los coeficientes de la lámina anterior. El crecimiento potencial es el que tendría la ciudad sin redistribución (Gini de 0,40 o más), con tope de 8% anual: el rango más alto que han sostenido las economías de crecimiento más rápido.')}
+        <ul class="mt-5 grid gap-3 text-[14px] text-white/75">
+          <li class="glass p-4">Lo central es el ingreso absoluto de la clase baja, no solo la brecha.</li>
+          <li class="glass p-4">La tarjeta de comparación contrasta el escenario con la misma ciudad a Gini 0,25.</li>
+          <li class="glass p-4">Límite: el Gini es constante durante los años simulados. No modela cuándo se expande el Estado ni la deuda futura.</li>
+        </ul>`,
+    ];
+    let slideIdx = 0;
+    function renderIntro() {
+      $('intro-body').innerHTML = `<div class="fade-in">${SLIDES[slideIdx]()}</div>`;
+      $('intro-count').textContent = `${slideIdx + 1} / ${SLIDES.length}`;
+      $('intro-dots').innerHTML = SLIDES.map((_, k) => `<span class="h-1.5 w-1.5 rounded-full ${k === slideIdx ? 'bg-white' : 'bg-white/25'}"></span>`).join('');
+      $('intro-prev').style.visibility = slideIdx ? 'visible' : 'hidden';
+      $('intro-next').textContent = slideIdx === SLIDES.length - 1 ? 'Entrar a la simulación' : 'Siguiente';
+    }
+    const closeIntro = () => { $('intro').style.display = 'none'; };
+    $('intro-next').addEventListener('click', () => { if (slideIdx === SLIDES.length - 1) closeIntro(); else { slideIdx++; renderIntro(); } });
+    $('intro-prev').addEventListener('click', () => { slideIdx = Math.max(0, slideIdx - 1); renderIntro(); });
+    $('intro-skip').addEventListener('click', closeIntro);
+    const reflexEl = $('reflex');
+    const closeReflex = () => { reflexEl.style.display = 'none'; };
+    $('btn-reflex').addEventListener('click', () => { reflexEl.style.display = ''; reflexEl.scrollTop = 0; });
+    $('reflex-close').addEventListener('click', closeReflex);
+    $('reflex-close-2').addEventListener('click', closeReflex);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeReflex(); });
+    $('btn-intro').addEventListener('click', () => { slideIdx = 0; renderIntro(); $('intro').style.display = ''; });
+    renderIntro();
+
+    lucide.createIcons();
+    refresh();
+    env.cityP = env.targetCityP;
+    districtState.forEach((d) => { d.grow = 1; if (d.group) d.group.scale.y = 1; d.lightLevel = d.targetLight; });
+    mainPool.current = mainPool.target;
+    districtPools.forEach((p) => { p.current = p.target; });
+    animate();
+    const loader = $('loading');
+    loader.style.opacity = '0';
+    setTimeout(() => loader.remove(), 600);
+  </script>
+</body>
+</html>

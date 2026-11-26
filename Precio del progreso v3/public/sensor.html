@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#090d16" />
+  <title>Sensor de movimiento · Ciudad Prosperidad</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, -apple-system, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #17243a, #090d16 55%); color: #f8fafc; padding: 22px 16px 40px; }
+    main { width: min(100%, 560px); margin: 0 auto; }
+    h1 { font-size: 27px; letter-spacing: -.04em; margin: 8px 0; }
+    p { color: #a8b3c7; line-height: 1.5; }
+    .card { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; padding: 18px; margin-top: 14px; }
+    .eyebrow { color: #8ea3c4; font-size: 12px; text-transform: uppercase; letter-spacing: .12em; }
+    .status { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 7px 11px; background: rgba(255,255,255,.08); color: #cbd5e1; font-size: 12px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; }
+    .status.ok .dot { background: #34d399; }
+    .status.error .dot { background: #fb7185; }
+    .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px; }
+    button, select { border: 1px solid rgba(255,255,255,.16); border-radius: 13px; background: #1b2a40; color: white; padding: 13px 12px; font-size: 14px; font-weight: 600; }
+    button.primary { background: #2563eb; border-color: #3b82f6; }
+    button:disabled { opacity: .4; }
+    .wide { width: 100%; margin-top: 9px; }
+    .readings { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .reading { background: rgba(0,0,0,.22); border-radius: 14px; padding: 13px; }
+    .reading span { display: block; color: #94a3b8; font-size: 12px; }
+    .reading strong { display: block; font-size: 25px; font-variant-numeric: tabular-nums; margin-top: 4px; }
+    .reading small { color: #94a3b8; font-size: 11px; }
+    label { display: block; font-size: 13px; color: #cbd5e1; margin: 12px 0 6px; }
+    select { width: 100%; }
+    .note { font-size: 12px; color: #8290a7; }
+    .value { color: #6ee7b7; }
+    .warning { color: #fbbf24; }
+    .footer { text-align: center; font-size: 11px; color: #64748b; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Ciudad Prosperidad · Control físico</div>
+    <h1>Sensor de movimiento</h1>
+    <p>El teléfono controlará el crecimiento mediante la inclinación. La desigualdad cambiará de forma acumulativa: reducirla será progresivamente más difícil que aumentarla.</p>
+
+    <section class="card">
+      <div id="status" class="status"><span class="dot"></span><span id="status-text">Sensor detenido</span></div>
+      <div class="buttons">
+        <button id="start" class="primary">Activar sensor</button>
+        <button id="calibrate" disabled>Calibrar centro</button>
+      </div>
+      <button id="stop" class="wide" disabled>Detener lectura</button>
+      <p id="hint" class="note">Abre esta página mediante HTTPS. Coloca el celular en el soporte antes de calibrar.</p>
+      <p id="sensor-diagnostic" class="note" aria-live="polite">Lectura: todavía no se ha recibido ningún evento.</p>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Lectura del teléfono</div>
+      <div class="readings" style="margin-top:12px">
+        <div class="reading"><span>Inclinación adelante / atrás (β)</span><strong id="beta">—</strong><small>grados</small></div>
+        <div class="reading"><span>Inclinación izquierda / derecha (γ)</span><strong id="gamma">—</strong><small>grados</small></div>
+        <div class="reading"><span>Crecimiento</span><strong class="value" id="growth">—</strong><small>porcentaje anual</small></div>
+        <div class="reading"><span>Desigualdad acumulada (Gini)</span><strong class="value" id="gini">—</strong><small>índice 0–1</small></div>
+      </div>
+      <p id="gini-guidance" class="note" style="margin-top:12px">Al calibrar, el Gini partirá del valor seleccionado en el computador. Volver al centro detiene el cambio, pero no deshace lo conseguido.</p>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Ajustes</div>
+      <label for="angle-range">Inclinación necesaria para activar el movimiento</label>
+      <select id="angle-range">
+        <option value="20">20° · más sensible</option>
+        <option value="30" selected>30° · equilibrado</option>
+        <option value="40">40° · menos sensible</option>
+        <option value="50">50° · recorrido amplio</option>
+      </select>
+      <p class="note">El crecimiento sigue la inclinación. Para el Gini, inclinar hacia el lado de igualdad lo reduce lentamente; inclinar hacia el lado contrario lo aumenta más rápido. En el centro no hay cambios.</p>
+      <label for="equality-direction">¿Qué sentido de inclinación representa igualdad?</label>
+      <select id="equality-direction">
+        <option value="-1" selected>Gamma negativo (valor inicial)</option>
+        <option value="1">Gamma positivo (invertir sentido)</option>
+      </select>
+      <p class="note">Si al probar el teléfono el Gini cambia en la dirección contraria a la esperada, selecciona la otra opción.</p>
+    </section>
+
+    <p class="footer">Mantén el teléfono sujeto al mecanismo durante la lectura. No hace falta tocar la pantalla después de activar y calibrar.</p>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const state = {
+      active: false,
+      calibrated: false,
+      latest: null,
+      baseline: null,
+      baselineGrowth: 7,
+      baselineGini: 0.55,
+      currentGini: 0.55,
+      lastOrientationAt: 0,
+      lastOrientationEventAt: 0,
+      lastSent: 0,
+      sending: false,
+      source: null,
+      motionFiltered: null,
+      eventCount: 0,
+    };
+    const LIMITS = { growthMin: -5, growthMax: 8, giniMin: 0.25, giniMax: 0.59 };
+    // Velocidades de cambio del Gini por segundo a inclinación máxima.
+    // Reducir desigualdad se ralentiza al acercarse al mínimo; aumentarla es más rápido.
+    const GINI_EQUALITY_RATE = 0.05;
+    const GINI_INEQUALITY_RATE = 0.07;
+    const GINI_DEAD_ZONE_DEG = 4;
+    const GINI_INTENSITY_EXPONENT = 1.25;
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function setStatus(message, kind = '') {
+      $('status-text').textContent = message;
+      $('status').className = `status ${kind}`;
+    }
+
+    function wrapDelta(current, baseline) {
+      let delta = current - baseline;
+      while (delta > 180) delta -= 360;
+      while (delta < -180) delta += 360;
+      return delta;
+    }
+
+    function mapFromCenter(delta, center, min, max, maxAngle) {
+      const fraction = Math.max(-1, Math.min(1, delta / maxAngle));
+      if (fraction < 0) return center + (-fraction) * (min - center);
+      return center + fraction * (max - center);
+    }
+
+    function fmt(value, decimals = 1) {
+      return Number(value).toFixed(decimals).replace('.', ',');
+    }
+
+    async function loadBaseline() {
+      try {
+        const response = await fetch('/api/sensor', { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        state.baselineGrowth = Number.isFinite(Number(data.baselineGrowth)) ? Number(data.baselineGrowth) : 7;
+        state.baselineGini = Number.isFinite(Number(data.baselineGini)) ? Number(data.baselineGini) : 0.55;
+        state.currentGini = state.baselineGini;
+      } catch (error) {
+        console.warn('No se pudo leer el punto de partida:', error);
+        $('hint').textContent = 'No se pudo leer la referencia del computador. Comprueba que el servidor esté funcionando.';
+      }
+    }
+
+    async function sendReading(betaDelta, gammaDelta, growth, gini) {
+      const now = Date.now();
+      if (state.sending || now - state.lastSent < 90) return;
+      state.sending = true;
+      state.lastSent = now;
+      try {
+        const response = await fetch('/api/sensor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+          body: JSON.stringify({ type: 'reading', beta: betaDelta, gamma: gammaDelta, growth, gini }),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        setStatus('Enviando datos al computador', 'ok');
+      } catch (error) {
+        setStatus('No se pudo enviar la lectura', 'error');
+        console.warn(error);
+      } finally {
+        state.sending = false;
+      }
+    }
+
+    function updateGiniFromTilt(gammaDelta, deltaSeconds, maxAngle) {
+      const magnitude = Math.abs(gammaDelta);
+      if (magnitude <= GINI_DEAD_ZONE_DEG || deltaSeconds <= 0) {
+        $('gini-guidance').textContent = `Centro: el Gini se mantiene en ${fmt(state.currentGini, 2)}. Inclina y mantén el teléfono hacia un lado para modificarlo.`;
+        return;
+      }
+
+      const rawIntensity = clamp(
+        (magnitude - GINI_DEAD_ZONE_DEG) / Math.max(1, maxAngle - GINI_DEAD_ZONE_DEG),
+        0,
+        1,
+      );
+      const intensity = Math.pow(rawIntensity, GINI_INTENSITY_EXPONENT);
+      const equalitySign = Number($('equality-direction').value);
+      const isEqualityDirection = Math.sign(gammaDelta) === equalitySign;
+
+      if (isEqualityDirection) {
+        // La dificultad cae conforme el Gini se acerca al mínimo: el avance nunca se vuelve imposible.
+        const progressAboveMinimum = clamp(
+          (state.currentGini - LIMITS.giniMin) / (LIMITS.giniMax - LIMITS.giniMin),
+          0,
+          1,
+        );
+        const difficulty = 0.10 + 0.90 * Math.pow(progressAboveMinimum, 2);
+        const change = GINI_EQUALITY_RATE * intensity * difficulty * deltaSeconds;
+        state.currentGini = clamp(state.currentGini - change, LIMITS.giniMin, LIMITS.giniMax);
+        $('gini-guidance').textContent = `Hacia igualdad: avance lento y cada vez más difícil. Gini actual: ${fmt(state.currentGini, 2)}.`;
+      } else {
+        const change = GINI_INEQUALITY_RATE * intensity * deltaSeconds;
+        state.currentGini = clamp(state.currentGini + change, LIMITS.giniMin, LIMITS.giniMax);
+        $('gini-guidance').textContent = `Hacia desigualdad: el cambio es más rápido. Gini actual: ${fmt(state.currentGini, 2)}.`;
+      }
+    }
+
+    // Convierte cualquier fuente disponible en los mismos ángulos beta/gamma.
+    // Así el resto del simulador no necesita saber qué sensor físico se utilizó.
+    function processTilt(beta, gamma, source) {
+      if (!Number.isFinite(beta) || !Number.isFinite(gamma)) return;
+      state.latest = { beta, gamma };
+      state.source = source;
+      state.eventCount += 1;
+      $('beta').textContent = `${fmt(beta)}°`;
+      $('gamma').textContent = `${fmt(gamma)}°`;
+      $('sensor-diagnostic').textContent = `Fuente: ${source}. Eventos recibidos: ${state.eventCount}.`;
+      $('calibrate').disabled = false;
+
+      if (!state.calibrated || !state.active) return;
+      const now = performance.now();
+      const deltaSeconds = state.lastOrientationAt
+        ? clamp((now - state.lastOrientationAt) / 1000, 0, 0.08)
+        : 0;
+      state.lastOrientationAt = now;
+
+      const betaDelta = wrapDelta(beta, state.baseline.beta);
+      const gammaDelta = wrapDelta(gamma, state.baseline.gamma);
+      const maxAngle = Number($('angle-range').value);
+      const growth = mapFromCenter(betaDelta, state.baselineGrowth, LIMITS.growthMin, LIMITS.growthMax, maxAngle);
+      const safeGrowth = clamp(growth, LIMITS.growthMin, LIMITS.growthMax);
+
+      updateGiniFromTilt(gammaDelta, deltaSeconds, maxAngle);
+      $('growth').textContent = `${fmt(safeGrowth, 1)}%`;
+      $('gini').textContent = fmt(state.currentGini, 2);
+      sendReading(betaDelta, gammaDelta, safeGrowth, state.currentGini);
+    }
+
+    function handleOrientation(event) {
+      if (!Number.isFinite(event.beta) || !Number.isFinite(event.gamma)) return;
+      state.lastOrientationEventAt = performance.now();
+      processTilt(event.beta, event.gamma, 'Orientación del dispositivo');
+    }
+
+    // Alternativa para teléfonos que no entregan beta/gamma mediante
+    // DeviceOrientationEvent. accelerationIncludingGravity permite estimar
+    // la inclinación estática; se filtra para reducir vibraciones y ruido.
+    function handleMotion(event) {
+      // Si DeviceOrientation está funcionando, tiene prioridad.
+      if (performance.now() - state.lastOrientationEventAt < 1500) return;
+      const a = event.accelerationIncludingGravity;
+      if (!a || !Number.isFinite(a.x) || !Number.isFinite(a.y) || !Number.isFinite(a.z)) return;
+
+      const previous = state.motionFiltered;
+      const smoothing = 0.18;
+      const filtered = previous
+        ? {
+            x: previous.x + smoothing * (a.x - previous.x),
+            y: previous.y + smoothing * (a.y - previous.y),
+            z: previous.z + smoothing * (a.z - previous.z),
+          }
+        : { x: a.x, y: a.y, z: a.z };
+      state.motionFiltered = filtered;
+
+      const { x, y, z } = filtered;
+      const beta = Math.atan2(-y, Math.abs(z)) * 180 / Math.PI;
+      const gamma = Math.atan2(x, Math.sqrt(y * y + z * z)) * 180 / Math.PI;
+      processTilt(beta, gamma, 'Acelerómetro (estimación)');
+    }
+
+    async function startSensor() {
+      if (!window.isSecureContext) {
+        setStatus('Se requiere una conexión HTTPS', 'error');
+        $('hint').textContent = 'DeviceOrientation solo está disponible en contextos seguros. Abre la dirección HTTPS del proyecto, no localhost ni una IP HTTP.';
+        return;
+      }
+      const hasOrientation = 'DeviceOrientationEvent' in window;
+      const hasMotion = 'DeviceMotionEvent' in window;
+      if (!hasOrientation && !hasMotion) {
+        setStatus('Este navegador no ofrece sensores de movimiento', 'error');
+        $('hint').textContent = 'Chrome no expone DeviceOrientationEvent ni DeviceMotionEvent en este dispositivo.';
+        return;
+      }
+      try {
+        if (hasOrientation && typeof DeviceOrientationEvent.requestPermission === 'function') {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission !== 'granted') throw new Error('Permiso de orientación denegado.');
+        }
+        if (hasMotion && typeof DeviceMotionEvent.requestPermission === 'function') {
+          const permission = await DeviceMotionEvent.requestPermission();
+          if (permission !== 'granted') throw new Error('Permiso de movimiento denegado.');
+        }
+        await loadBaseline();
+        state.lastOrientationEventAt = 0;
+        state.motionFiltered = null;
+        state.eventCount = 0;
+        window.addEventListener('deviceorientation', handleOrientation, true);
+        window.addEventListener('devicemotion', handleMotion, true);
+        state.active = true;
+        $('start').disabled = true;
+        $('stop').disabled = false;
+        $('calibrate').disabled = !state.latest;
+        setStatus('Sensor activado; esperando lecturas', 'ok');
+        $('hint').textContent = 'Si el navegador no entrega orientación, se intentará estimar la inclinación con el acelerómetro. Mueve suavemente el teléfono.';
+        $('sensor-diagnostic').textContent = 'Esperando eventos de orientación o movimiento…';
+      } catch (error) {
+        setStatus(error.message || 'No se pudo activar el sensor', 'error');
+      }
+    }
+
+    function calibrate() {
+      if (!state.latest) return;
+      state.baseline = { ...state.latest };
+      state.currentGini = state.baselineGini;
+      state.lastOrientationAt = performance.now();
+      state.calibrated = true;
+      $('growth').textContent = `${fmt(state.baselineGrowth, 1)}%`;
+      $('gini').textContent = fmt(state.currentGini, 2);
+      $('gini-guidance').textContent = 'Centro calibrado: el Gini queda fijado en este valor hasta que inclines el teléfono.';
+      setStatus('Centro calibrado; enviando movimientos', 'ok');
+      $('hint').textContent = `Centro: crecimiento ${fmt(state.baselineGrowth, 1)}% y Gini ${fmt(state.currentGini, 2)}. El crecimiento sigue la inclinación; el Gini se acumula y no vuelve al centro.`;
+      sendReading(0, 0, state.baselineGrowth, state.currentGini);
+    }
+
+    async function stopSensor() {
+      window.removeEventListener('deviceorientation', handleOrientation, true);
+      window.removeEventListener('devicemotion', handleMotion, true);
+      state.active = false;
+      state.calibrated = false;
+      state.lastOrientationAt = 0;
+      state.lastOrientationEventAt = 0;
+      state.motionFiltered = null;
+      $('start').disabled = false;
+      $('stop').disabled = true;
+      $('calibrate').disabled = true;
+      try {
+        await fetch('/api/sensor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'disconnect' }),
+        });
+      } catch (_) {}
+      setStatus('Sensor detenido');
+    }
+
+    $('start').addEventListener('click', startSensor);
+    $('calibrate').addEventListener('click', calibrate);
+    $('stop').addEventListener('click', stopSensor);
+    window.addEventListener('pagehide', () => {
+      if (state.active && navigator.sendBeacon) {
+        navigator.sendBeacon('/api/sensor', new Blob([JSON.stringify({ type: 'disconnect' })], { type: 'application/json' }));
+      }
+    });
+  </script>
+</body>
+</html>
