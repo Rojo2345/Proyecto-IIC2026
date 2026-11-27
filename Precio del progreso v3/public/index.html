@@ -265,10 +265,62 @@
       .fade-in { animation: none; }
       .glass-btn, .range::-webkit-slider-thumb { transition: none; }
     }
+
+
+    /* E2 · Vista inmersiva: la ciudad es el foco, no el dashboard. */
+    body.city-focus { background:#080b0e; overflow:hidden; }
+    .city-focus .ambient { opacity:.45; }
+    .city-focus .city-layout { height:100dvh; width:100vw; }
+    .city-focus .city-main { width:100%; height:100dvh; min-height:100dvh; flex:1 1 100%; }
+    .city-focus aside[aria-label="Panel de control y métricas"] {
+      position:fixed !important; left:-10000px !important; top:0 !important;
+      width:480px !important; height:100vh !important; visibility:hidden !important;
+      pointer-events:none !important; overflow:hidden !important;
+    }
+    .city-focus #intro { display:none !important; }
+    .city-focus .city-title {
+      border:1px solid rgba(255,255,255,.16); border-radius:18px;
+      background:rgba(5,10,16,.48); backdrop-filter:blur(14px);
+      box-shadow:0 12px 36px rgba(0,0,0,.2);
+    }
+    .city-focus .city-title p:first-child { font-size:clamp(13px,1.5vw,19px); }
+    .city-focus .district-label { transform:translate(-50%,-100%); }
+    .city-focus .district-label-card {
+      padding:10px 16px !important; gap:10px !important;
+      border-radius:14px !important; background:rgba(5,10,16,.82) !important;
+      box-shadow:0 8px 28px rgba(0,0,0,.32) !important;
+      border-width:1px !important; backdrop-filter:blur(10px);
+    }
+    .city-focus .district-label-card > span { width:13px !important; height:13px !important; }
+    .city-focus .district-label-card p:first-child {
+      font-size:clamp(15px,1.6vw,22px) !important; font-weight:750 !important;
+      letter-spacing:.01em; color:#fff !important;
+    }
+    .city-focus .district-label-card [data-role="value"] { display:none !important; }
+    .city-focus .city-controls { z-index:20; border:1px solid rgba(255,255,255,.18); background:rgba(5,10,16,.72); backdrop-filter:blur(16px); }
+    .city-focus .focus-mode-btn, .city-focus .focus-link {
+      border-radius:999px; padding:9px 15px; font-size:12px; font-weight:650;
+      color:rgba(255,255,255,.72); transition:background .2s,color .2s;
+    }
+    .city-focus .focus-mode-btn[aria-pressed="true"] { background:rgba(255,255,255,.2); color:#fff; }
+    .city-focus .focus-link { color:#a7f3d0; text-decoration:underline; text-underline-offset:3px; }
+    .city-focus .focus-divider { width:1px; height:22px; background:rgba(255,255,255,.18); }
+    .city-focus .city-hint { bottom:82px; }
+    .city-focus #btn-reflex, .city-focus #btn-intro { display:none !important; }
+    @media(max-width:640px) {
+      .city-focus .city-title { padding:9px 12px; }
+      .city-focus .city-controls { width:calc(100% - 24px); justify-content:center; gap:4px; }
+      .city-focus .focus-mode-btn, .city-focus .focus-link { padding:9px 10px; font-size:11px; }
+      .city-focus #focus-sensor-status { display:none; }
+      .city-focus .district-label-card { padding:7px 10px !important; }
+      .city-focus .district-label-card p:first-child { font-size:14px !important; }
+      .city-focus .city-hint { font-size:10px; }
+    }
+
   </style>
 </head>
 
-<body class="font-sans text-white lg:h-screen lg:overflow-hidden">
+<body class="font-sans text-white lg:h-screen lg:overflow-hidden city-focus">
   <div class="ambient" aria-hidden="true"></div>
   <div id="intro" class="fixed inset-0 z-50 bg-black/95 overflow-y-auto" role="dialog" aria-label="Presentación">
     <div class="mx-auto max-w-3xl min-h-full flex flex-col px-5 py-8 sm:py-12">
@@ -329,30 +381,24 @@
     </article>
   </div>
 
-  <div class="flex flex-col lg:flex-row lg:h-screen">
+  <div class="city-layout flex flex-col lg:flex-row lg:h-screen">
 
     <!-- ================= 3D AREA ================= -->
-    <main class="relative flex-1 h-[62vh] lg:h-screen min-h-[380px] overflow-hidden bg-black" aria-label="Visor 3D de la ciudad">
+    <main class="city-main relative flex-1 h-[62vh] lg:h-screen min-h-[380px] overflow-hidden bg-black" aria-label="Visualización 3D de Ciudad Prosperidad">
       <div id="scene" class="absolute inset-0"></div>
       <div id="labels" class="absolute inset-0 pointer-events-none" aria-hidden="true"></div>
 
       <header class="absolute top-0 inset-x-0 p-3 sm:p-4 flex items-start justify-between gap-3 pointer-events-none">
-        <div class="glass pointer-events-auto px-5 py-3 max-w-xl">
-          <p class="text-[11px] font-medium text-white/60">Ciudad Prosperidad · Año <span id="hud-year" class="font-mono text-white/85">25</span></p>
-          <p class="text-base sm:text-lg font-semibold tracking-tight leading-snug">
-            <span id="hud-gdp" class="font-mono">—</span>
-            <span class="text-white/35 font-normal mx-1">·</span>
-            <span class="text-sm font-medium text-white/60">Pobreza</span>
-            <span id="hud-poverty" class="font-mono font-semibold t-bad">—</span>
-            <span class="text-white/35 font-normal mx-1">·</span>
-            <span class="text-sm font-medium text-white/60">Clase baja</span>
-            <span id="hud-low" class="font-mono font-semibold tx-low">—</span>
-          </p>
+        <div class="city-title pointer-events-auto px-5 py-3">
+          <p class="text-[12px] sm:text-sm font-semibold tracking-[0.18em] uppercase text-white/75">Ciudad Prosperidad</p>
+          <p class="text-[10px] sm:text-xs text-white/45 tracking-wide">Una ciudad, tres distritos</p>
+          <span id="hud-year" class="sr-only">25</span>
+          <span id="hud-gdp" class="sr-only">—</span><span id="hud-poverty" class="sr-only">—</span><span id="hud-low" class="sr-only">—</span>
         </div>
 
         <div class="glass glass-pill pointer-events-auto flex gap-1 p-1" role="toolbar" aria-label="Controles de la vista">
-          <button id="btn-reflex" type="button" class="glass-btn h-9 px-3 flex items-center gap-2 rounded-full text-[13px] font-medium text-white/90" aria-label="Abrir la reflexión filosófica">
-            <i data-lucide="book-open" class="w-[18px] h-[18px]"></i><span class="hidden sm:inline">Reflexión filosófica</span>
+          <button id="btn-reflex" type="button" class="glass-btn h-9 w-9 grid place-items-center rounded-full text-white/85" aria-label="Abrir la reflexión filosófica" title="Reflexión filosófica">
+            <i data-lucide="book-open" class="w-[18px] h-[18px]"></i>
           </button>
           <button id="btn-night" type="button" class="glass-btn h-9 w-9 grid place-items-center rounded-full text-white/85" aria-label="Cambiar a vista diurna" aria-pressed="true">
             <i data-lucide="sun" class="w-[18px] h-[18px]"></i>
@@ -372,10 +418,14 @@
         </div>
       </header>
 
-      <p class="glass glass-pill absolute bottom-3 left-1/2 -translate-x-1/2 text-[11px] text-white/75 px-4 py-2 pointer-events-none whitespace-nowrap">
-        <span class="hidden sm:inline">Arrastra para rotar · Rueda para zoom · Clic derecho para desplazar</span>
-        <span class="sm:hidden">Arrastra para rotar · Pellizca para zoom</span>
-      </p>
+      <div class="city-controls glass glass-pill absolute bottom-4 left-1/2 -translate-x-1/2 px-2 py-2 flex items-center gap-2 pointer-events-auto" role="group" aria-label="Control de la simulación">
+        <button id="focus-mode-manual" type="button" class="focus-mode-btn" aria-pressed="true">Manual</button>
+        <button id="focus-mode-sensor" type="button" class="focus-mode-btn" aria-pressed="false">Gimbal</button>
+        <span class="focus-divider"></span>
+        <span id="focus-sensor-status" class="text-[11px] text-white/65 px-2">Control manual</span>
+        <a href="/sensor.html" target="_blank" rel="noopener" class="focus-link" title="Abrir sensor en el celular">Abrir sensor</a>
+      </div>
+      <p class="city-hint absolute bottom-[76px] left-1/2 -translate-x-1/2 text-[11px] text-white/45 pointer-events-none whitespace-nowrap">Arrastra para observar la ciudad</p>
 
       <div id="loading" class="absolute inset-0 grid place-items-center bg-black text-white/60 text-sm transition-opacity duration-500">
         <div class="flex items-center gap-3">
@@ -396,10 +446,10 @@
           </p>
 
           <div class="mt-5 -mx-2 px-2 py-1 flex gap-2 overflow-x-auto no-scrollbar" id="presets" role="group" aria-label="Escenarios rápidos">
-            <button type="button" data-g="2.5" data-gini="0.25" data-t="25" class="preset glass glass-pill glass-btn shrink-0 flex items-center gap-2 px-4 py-2 text-[13px] font-medium" title="+2,5% potencial · Gini 0,25">
+            <button type="button" data-g="2.5" data-gini="0.25" data-t="25" class="preset glass glass-pill glass-btn shrink-0 flex items-center gap-2 px-4 py-2 text-[13px] font-medium" title="Crecimiento bajo">
               <i data-lucide="scale" class="w-4 h-4 text-white/60"></i>Igualdad en la miseria
             </button>
-            <button type="button" data-g="5.5" data-gini="0.50" data-t="25" class="preset glass glass-pill glass-btn shrink-0 flex items-center gap-2 px-4 py-2 text-[13px] font-medium" title="+5,5% · Gini 0,50">
+            <button type="button" data-g="5.5" data-gini="0.50" data-t="25" class="preset glass glass-pill glass-btn shrink-0 flex items-center gap-2 px-4 py-2 text-[13px] font-medium" title="Crecimiento alto">
               <i data-lucide="rocket" class="w-4 h-4 text-white/60"></i>Crecimiento desigual
             </button>
           </div>
@@ -414,7 +464,7 @@
             <button id="mode-manual" type="button" class="glass glass-pill glass-btn px-4 py-2 text-[13px] font-medium" aria-pressed="true">Manual</button>
             <button id="mode-sensor" type="button" class="glass glass-pill glass-btn px-4 py-2 text-[13px] font-medium" aria-pressed="false">Celular Android</button>
           </div>
-          <p id="sensor-mode-help" class="text-[12px] text-white/50 leading-relaxed">Usa los controles manuales para modificar crecimiento y desigualdad.</p>
+          <p id="sensor-mode-help" class="text-[12px] text-white/50 leading-relaxed">El crecimiento es el único control; la distribución de ingresos cambia de forma virtual.</p>
           <a href="/sensor.html" target="_blank" rel="noopener" class="glass glass-pill glass-btn inline-flex items-center justify-center gap-2 px-4 py-2.5 text-[13px] font-medium text-white/85">
             <i data-lucide="smartphone" class="w-4 h-4"></i> Abrir página del sensor
           </a>
@@ -426,11 +476,11 @@
 
           <div>
             <div class="flex items-baseline justify-between mb-3">
-              <label for="growth" class="text-[15px] text-white/85">Crecimiento potencial</label>
-              <output id="growth-out" for="growth" class="font-mono text-[15px] font-semibold t-good">+9,0%</output>
+              <label for="growth" class="text-[15px] text-white/85">Crecimiento económico</label>
+              <output id="growth-out" for="growth" class="font-mono text-[15px] font-semibold t-good">+1,0%</output>
             </div>
-            <input id="growth" class="range" type="range" min="-5" max="8" step="0.5" value="7" style="--accent: var(--c-good)" />
-            <div class="flex justify-between text-[11px] text-white/35 mt-2 font-mono"><span>−5%</span><span>+8% (máx. sostenido)</span></div>
+            <input id="growth" class="range" type="range" min="1" max="8" step="0.5" value="1" style="--accent: var(--c-good)" />
+            <div class="flex justify-between text-[11px] text-white/35 mt-2 font-mono"><span>+1% · posición inicial</span><span>+8% · máximo</span></div>
           </div>
 
           <div>
@@ -604,10 +654,17 @@
     const BETA_POOR = 0.11, BETA_RICH = 0.09;   // pp de crecimiento anual por punto de Gini
     const Y_LO = 4000, Y_HI = 8000;            // transición suave en ingreso medio (USD PPA/año)
     const giniBeta = (y) => lerp(BETA_POOR, BETA_RICH, clamp(Math.log(y / Y_LO) / Math.log(Y_HI / Y_LO), 0, 1));
-    function effGrowth(gRaw, gini, mean) {
-      // Solo hay costo al REDISTRIBUIR (bajar el Gini bajo la referencia). Nunca hay bonus.
-      const pts = Math.max(0, GINI_REF - clamp(gini, 0.25, GINI_REF)) * 100;
-      return clamp(gRaw - (giniBeta(mean) / 100) * pts, -0.9, 0.10);   // tope: ninguna economía sostiene >10% anual por décadas
+    // La interacción física controla únicamente el crecimiento. La desigualdad
+    // es una variable visual derivada (virtual): al aumentar el crecimiento,
+    // el escenario converge hacia una distribución más igualitaria.
+    function virtualGiniFromGrowth(growthPct) {
+      const progress = clamp((growthPct - 1) / 7, 0, 1);
+      return lerp(0.55, 0.25, progress);
+    }
+
+    function effGrowth(gRaw, _gini, _mean) {
+      // El crecimiento recibido es el único control económico de la experiencia.
+      return clamp(gRaw, -0.9, 0.10);
     }
 
     function simulate(gRaw, gini, t) {
@@ -986,17 +1043,18 @@
             });
           }
         } else {
+          // En el escenario de mayor igualdad, el distrito de menores ingresos
+          // también incorpora torres: la prosperidad deja de concentrarse arriba.
           if (isCenter(i, j) || (i === 0 && j === 4)) return addPark(group, x, z, r);
           addBox(group, M.grassLot, x, 0, z, 3.8, 0.06, 3.8);
-          const f1 = Math.max(4, Math.round((5 + r() * 2) * hf));
-          const f2 = Math.max(4, Math.round((5 + r() * 2) * hf));
-          addBuilding(group, F.lowModern, x, z - 0.85, 3.2, f1 * FLOOR_H, 1.25, 0.06);
-          addBuilding(group, F.modern, x, z + 0.95, 3.2, f2 * FLOOR_H, 1.1, 0.06);
-          for (const [bz, f] of [[-0.85, f1], [0.95, f2]]) {
-            for (let k = -1; k <= 1; k++) {
-              addBox(group, M.solar, x + k * 0.95, 0.07 + f * FLOOR_H, z + bz, 0.75, 0.04, 0.7).rotation.x = -0.35;
-            }
-          }
+          const floorsA = Math.max(14, Math.round((16 + r() * 7) * hf));
+          const floorsB = Math.max(11, Math.round((12 + r() * 6) * hf));
+          const towerMat = pick(r, [F.glassTeal, F.glassBlue, F.lowModern]);
+          addBuilding(group, towerMat, x - 0.72, z - 0.55, 1.55, floorsA * FLOOR_H, 1.55, 0.06);
+          addBuilding(group, pick(r, [F.modern, F.glassTeal]), x + 0.85, z + 0.75, 1.35, floorsB * FLOOR_H, 1.35, 0.06);
+          addTree(group, x - 1.25, z + 1.25, 0.85, r);
+          addTree(group, x + 1.25, z - 1.2, 0.85, r);
+          addBox(group, M.paverLot, x, 0.06, z + 1.35, 3.4, 0.015, 0.55);
         }
       });
     }
@@ -1421,7 +1479,7 @@
           <span class="h-2.5 w-2.5 rounded-full"></span>
           <div class="leading-tight">
             <p class="text-[11px] font-semibold text-white">${def.name}</p>
-            <p class="text-[10px] font-mono" data-role="value">—</p>
+            <p class="sr-only" data-role="value">—</p>
           </div>
         </div>`;
       labelsRoot.appendChild(el);
@@ -1456,7 +1514,7 @@
     resize();
 
     const clock = new THREE.Clock();
-    const state = { g: 0.07, gini: 0.55, t: 25, playing: false, playAcc: 0, logScale: true };
+    const state = { g: 0.01, gini: 0.55, t: 25, playing: false, playAcc: 0, logScale: true };
 
     // Audio ambiente que se carga automáticamente al activar el sonido.
     const CUSTOM_AUDIO_URL = 'ambient-city.mp3';
@@ -1820,6 +1878,9 @@
     const $ = (id) => document.getElementById(id);
     const growthInput = $('growth');
     const giniInput = $('gini');
+    // Se conserva el input interno por compatibilidad con el modelo existente,
+    // pero el usuario ya no controla el Gini directamente.
+    giniInput.closest('div').style.display = 'none';
     const yearsInput = $('years');
     const yearsEndInput = $('years-end');
     const soundscape = new UrbanSoundscape();
@@ -2052,7 +2113,8 @@
     async function publishSensorBaseline() {
       const growth = Number(growthInput.value);
       const gini = Number(giniInput.value);
-      const key = `${growth}|${gini}`;
+      const virtualGini = virtualGiniFromGrowth(growth);
+      const key = `${growth}|${virtualGini}`;
       if (key === lastPublishedBaseline) return;
       lastPublishedBaseline = key;
       try {
@@ -2060,7 +2122,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
-          body: JSON.stringify({ type: 'baseline', growth, gini }),
+          body: JSON.stringify({ type: 'baseline', growth, gini: virtualGini }),
         });
       } catch (error) {
         console.warn('No se pudo publicar la referencia para el sensor:', error);
@@ -2084,8 +2146,8 @@
       $('sensor-connection-status').textContent = sensorMode ? 'Esperando Android…' : 'Control manual activo';
       $('sensor-connection-status').className = `text-[11px] font-medium ${sensorMode ? 'text-amber-200' : 'text-white/50'}`;
       $('sensor-mode-help').textContent = sensorMode
-        ? 'El Android controla el crecimiento por inclinación y modifica el Gini de forma acumulativa: reducir desigualdad se vuelve progresivamente más difícil. Volver al centro detiene el cambio, pero no lo revierte.'
-        : 'Usa los controles manuales para modificar crecimiento y desigualdad.';
+        ? 'El Android controla únicamente el crecimiento. La desigualdad se representa de forma virtual: al crecer la economía, las condiciones de los distritos convergen.'
+        : 'Ajusta el crecimiento económico. La igualdad se deriva visualmente del crecimiento.';
       if (!sensorMode) publishSensorBaseline();
     }
 
@@ -2107,8 +2169,8 @@
         $('sensor-connection-status').className = 'text-[11px] font-medium text-emerald-300';
         if (data.updatedAt !== lastSensorTimestamp) {
           lastSensorTimestamp = data.updatedAt;
-          growthInput.value = String(clamp(Number(data.growth), -5, 8));
-          giniInput.value = String(clamp(Number(data.gini), 0.25, 0.59));
+          growthInput.value = String(clamp(Number(data.growth), 1, 8));
+          giniInput.value = String(virtualGiniFromGrowth(Number(data.growth)));
           refresh();
         }
       } catch (error) {
@@ -2122,7 +2184,8 @@
 
     function refresh() {
       state.g = parseFloat(growthInput.value) / 100;
-      state.gini = parseFloat(giniInput.value);
+      state.gini = virtualGiniFromGrowth(parseFloat(growthInput.value));
+      giniInput.value = String(state.gini);
       state.t = parseInt(yearsInput.value, 10);
       [growthInput, giniInput, yearsInput, yearsEndInput].forEach(updateRangeFill);
       const sim = simulate(state.g, state.gini, state.t);
@@ -2210,6 +2273,18 @@
 
     $('mode-manual').addEventListener('click', () => setInputMode('manual'));
     $('mode-sensor').addEventListener('click', () => setInputMode('sensor'));
+    // Controles compactos de la vista inmersiva: reutilizan la lógica original.
+    $('focus-mode-manual').addEventListener('click', () => setInputMode('manual'));
+    $('focus-mode-sensor').addEventListener('click', () => setInputMode('sensor'));
+    const syncFocusMode = () => {
+      const sensor = inputMode === 'sensor';
+      $('focus-mode-manual').setAttribute('aria-pressed', String(!sensor));
+      $('focus-mode-sensor').setAttribute('aria-pressed', String(sensor));
+      $('focus-sensor-status').textContent = sensor ? 'Esperando gimbal…' : 'Control manual';
+    };
+    const originalSetInputMode = setInputMode;
+    setInputMode = function(mode) { originalSetInputMode(mode); syncFocusMode(); };
+    syncFocusMode();
     setInputMode('manual');
     window.setInterval(pollSensor, 120);
 

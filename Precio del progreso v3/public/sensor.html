@@ -40,7 +40,7 @@
   <main>
     <div class="eyebrow">Ciudad Prosperidad · Control físico</div>
     <h1>Sensor de movimiento</h1>
-    <p>El teléfono controlará el crecimiento mediante la inclinación. La desigualdad cambiará de forma acumulativa: reducirla será progresivamente más difícil que aumentarla.</p>
+    <p>El teléfono controla únicamente el crecimiento económico. Al tirar el gimbal hacia abajo, el crecimiento aumenta y la ciudad se vuelve progresivamente más igualitaria.</p>
 
     <section class="card">
       <div id="status" class="status"><span class="dot"></span><span id="status-text">Sensor detenido</span></div>
@@ -54,32 +54,25 @@
     </section>
 
     <section class="card">
-      <div class="eyebrow">Lectura del teléfono</div>
+      <div class="eyebrow">Lectura del movimiento</div>
       <div class="readings" style="margin-top:12px">
-        <div class="reading"><span>Inclinación adelante / atrás (β)</span><strong id="beta">—</strong><small>grados</small></div>
-        <div class="reading"><span>Inclinación izquierda / derecha (γ)</span><strong id="gamma">—</strong><small>grados</small></div>
-        <div class="reading"><span>Crecimiento</span><strong class="value" id="growth">—</strong><small>porcentaje anual</small></div>
-        <div class="reading"><span>Desigualdad acumulada (Gini)</span><strong class="value" id="gini">—</strong><small>índice 0–1</small></div>
+        <div class="reading"><span>Inclinación del marco (eje activo)</span><strong id="beta">—</strong><small>grados</small></div>
+        <div class="reading"><span>Crecimiento económico</span><strong class="value" id="growth">—</strong><small>porcentaje anual</small></div>
+        <div class="reading"><span>Igualdad urbana</span><strong class="value" id="gini">—</strong><small>nivel virtual</small></div>
       </div>
-      <p id="gini-guidance" class="note" style="margin-top:12px">Al calibrar, el Gini partirá del valor seleccionado en el computador. Volver al centro detiene el cambio, pero no deshace lo conseguido.</p>
+      <p id="gini-guidance" class="note" style="margin-top:12px">La igualdad es una variable visual derivada del crecimiento, no un control independiente.</p>
     </section>
 
     <section class="card">
       <div class="eyebrow">Ajustes</div>
-      <label for="angle-range">Inclinación necesaria para activar el movimiento</label>
+      <label for="angle-range">Recorrido necesario para aumentar el crecimiento</label>
       <select id="angle-range">
         <option value="20">20° · más sensible</option>
         <option value="30" selected>30° · equilibrado</option>
         <option value="40">40° · menos sensible</option>
         <option value="50">50° · recorrido amplio</option>
       </select>
-      <p class="note">El crecimiento sigue la inclinación. Para el Gini, inclinar hacia el lado de igualdad lo reduce lentamente; inclinar hacia el lado contrario lo aumenta más rápido. En el centro no hay cambios.</p>
-      <label for="equality-direction">¿Qué sentido de inclinación representa igualdad?</label>
-      <select id="equality-direction">
-        <option value="-1" selected>Gamma negativo (valor inicial)</option>
-        <option value="1">Gamma positivo (invertir sentido)</option>
-      </select>
-      <p class="note">Si al probar el teléfono el Gini cambia en la dirección contraria a la esperada, selecciona la otra opción.</p>
+      <p class="note">La posición calibrada representa desigualdad inicial. Al tirar el gimbal hacia abajo, el crecimiento aumenta. Si el sentido físico queda invertido, se ajustará el signo del eje beta.</p>
     </section>
 
     <p class="footer">Mantén el teléfono sujeto al mecanismo durante la lectura. No hace falta tocar la pantalla después de activar y calibrar.</p>
@@ -92,7 +85,7 @@
       calibrated: false,
       latest: null,
       baseline: null,
-      baselineGrowth: 7,
+      baselineGrowth: 1,
       baselineGini: 0.55,
       currentGini: 0.55,
       lastOrientationAt: 0,
@@ -103,13 +96,9 @@
       motionFiltered: null,
       eventCount: 0,
     };
-    const LIMITS = { growthMin: -5, growthMax: 8, giniMin: 0.25, giniMax: 0.59 };
-    // Velocidades de cambio del Gini por segundo a inclinación máxima.
-    // Reducir desigualdad se ralentiza al acercarse al mínimo; aumentarla es más rápido.
-    const GINI_EQUALITY_RATE = 0.05;
-    const GINI_INEQUALITY_RATE = 0.07;
-    const GINI_DEAD_ZONE_DEG = 4;
-    const GINI_INTENSITY_EXPONENT = 1.25;
+    const LIMITS = { growthMin: 1, growthMax: 8, giniMin: 0.25, giniMax: 0.55 };
+    // El nivel de igualdad se deriva del crecimiento; no existe un segundo eje de control.
+    
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
@@ -142,9 +131,9 @@
         const response = await fetch('/api/sensor', { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-        state.baselineGrowth = Number.isFinite(Number(data.baselineGrowth)) ? Number(data.baselineGrowth) : 7;
+        state.baselineGrowth = Number.isFinite(Number(data.baselineGrowth)) ? Number(data.baselineGrowth) : 1;
         state.baselineGini = Number.isFinite(Number(data.baselineGini)) ? Number(data.baselineGini) : 0.55;
-        state.currentGini = state.baselineGini;
+        state.currentGini = virtualGiniFromGrowth(state.baselineGrowth);
       } catch (error) {
         console.warn('No se pudo leer el punto de partida:', error);
         $('hint').textContent = 'No se pudo leer la referencia del computador. Comprueba que el servidor esté funcionando.';
@@ -173,69 +162,34 @@
       }
     }
 
-    function updateGiniFromTilt(gammaDelta, deltaSeconds, maxAngle) {
-      const magnitude = Math.abs(gammaDelta);
-      if (magnitude <= GINI_DEAD_ZONE_DEG || deltaSeconds <= 0) {
-        $('gini-guidance').textContent = `Centro: el Gini se mantiene en ${fmt(state.currentGini, 2)}. Inclina y mantén el teléfono hacia un lado para modificarlo.`;
-        return;
-      }
-
-      const rawIntensity = clamp(
-        (magnitude - GINI_DEAD_ZONE_DEG) / Math.max(1, maxAngle - GINI_DEAD_ZONE_DEG),
-        0,
-        1,
-      );
-      const intensity = Math.pow(rawIntensity, GINI_INTENSITY_EXPONENT);
-      const equalitySign = Number($('equality-direction').value);
-      const isEqualityDirection = Math.sign(gammaDelta) === equalitySign;
-
-      if (isEqualityDirection) {
-        // La dificultad cae conforme el Gini se acerca al mínimo: el avance nunca se vuelve imposible.
-        const progressAboveMinimum = clamp(
-          (state.currentGini - LIMITS.giniMin) / (LIMITS.giniMax - LIMITS.giniMin),
-          0,
-          1,
-        );
-        const difficulty = 0.10 + 0.90 * Math.pow(progressAboveMinimum, 2);
-        const change = GINI_EQUALITY_RATE * intensity * difficulty * deltaSeconds;
-        state.currentGini = clamp(state.currentGini - change, LIMITS.giniMin, LIMITS.giniMax);
-        $('gini-guidance').textContent = `Hacia igualdad: avance lento y cada vez más difícil. Gini actual: ${fmt(state.currentGini, 2)}.`;
-      } else {
-        const change = GINI_INEQUALITY_RATE * intensity * deltaSeconds;
-        state.currentGini = clamp(state.currentGini + change, LIMITS.giniMin, LIMITS.giniMax);
-        $('gini-guidance').textContent = `Hacia desigualdad: el cambio es más rápido. Gini actual: ${fmt(state.currentGini, 2)}.`;
-      }
+    function virtualGiniFromGrowth(growthPct) {
+      const progress = clamp((growthPct - LIMITS.growthMin) / (LIMITS.growthMax - LIMITS.growthMin), 0, 1);
+      return LIMITS.giniMax - progress * (LIMITS.giniMax - LIMITS.giniMin);
     }
 
-    // Convierte cualquier fuente disponible en los mismos ángulos beta/gamma.
-    // Así el resto del simulador no necesita saber qué sensor físico se utilizó.
+    // El único eje activo es beta (adelante/atrás). Se invierte su signo:
+    // al tirar el marco hacia abajo, el crecimiento debe aumentar.
     function processTilt(beta, gamma, source) {
       if (!Number.isFinite(beta) || !Number.isFinite(gamma)) return;
       state.latest = { beta, gamma };
       state.source = source;
       state.eventCount += 1;
       $('beta').textContent = `${fmt(beta)}°`;
-      $('gamma').textContent = `${fmt(gamma)}°`;
-      $('sensor-diagnostic').textContent = `Fuente: ${source}. Eventos recibidos: ${state.eventCount}.`;
       $('calibrate').disabled = false;
+      $('sensor-diagnostic').textContent = `Fuente: ${source}. Eventos recibidos: ${state.eventCount}.`;
 
       if (!state.calibrated || !state.active) return;
-      const now = performance.now();
-      const deltaSeconds = state.lastOrientationAt
-        ? clamp((now - state.lastOrientationAt) / 1000, 0, 0.08)
-        : 0;
-      state.lastOrientationAt = now;
-
       const betaDelta = wrapDelta(beta, state.baseline.beta);
-      const gammaDelta = wrapDelta(gamma, state.baseline.gamma);
       const maxAngle = Number($('angle-range').value);
-      const growth = mapFromCenter(betaDelta, state.baselineGrowth, LIMITS.growthMin, LIMITS.growthMax, maxAngle);
+      const growth = mapFromCenter(-betaDelta, state.baselineGrowth, LIMITS.growthMin, LIMITS.growthMax, maxAngle);
       const safeGrowth = clamp(growth, LIMITS.growthMin, LIMITS.growthMax);
-
-      updateGiniFromTilt(gammaDelta, deltaSeconds, maxAngle);
+      state.currentGini = virtualGiniFromGrowth(safeGrowth);
       $('growth').textContent = `${fmt(safeGrowth, 1)}%`;
-      $('gini').textContent = fmt(state.currentGini, 2);
-      sendReading(betaDelta, gammaDelta, safeGrowth, state.currentGini);
+      $('gini').textContent = `${fmt((1 - (state.currentGini - LIMITS.giniMin) / (LIMITS.giniMax - LIMITS.giniMin)) * 100, 0)}%`;
+      $('gini-guidance').textContent = safeGrowth <= LIMITS.growthMin + 0.1
+        ? 'Posición neutral: desigualdad inicial.'
+        : 'Mayor crecimiento: los distritos convergen y el distrito de menores ingresos también se verticaliza.';
+      sendReading(-betaDelta, 0, safeGrowth, state.currentGini);
     }
 
     function handleOrientation(event) {
@@ -303,7 +257,7 @@
         $('stop').disabled = false;
         $('calibrate').disabled = !state.latest;
         setStatus('Sensor activado; esperando lecturas', 'ok');
-        $('hint').textContent = 'Si el navegador no entrega orientación, se intentará estimar la inclinación con el acelerómetro. Mueve suavemente el teléfono.';
+        $('hint').textContent = 'Coloca el gimbal en posición neutral y calibra. Después tira suavemente hacia abajo para aumentar el crecimiento.';
         $('sensor-diagnostic').textContent = 'Esperando eventos de orientación o movimiento…';
       } catch (error) {
         setStatus(error.message || 'No se pudo activar el sensor', 'error');
@@ -313,15 +267,15 @@
     function calibrate() {
       if (!state.latest) return;
       state.baseline = { ...state.latest };
-      state.currentGini = state.baselineGini;
+      state.currentGini = virtualGiniFromGrowth(state.baselineGrowth);
       state.lastOrientationAt = performance.now();
       state.calibrated = true;
       $('growth').textContent = `${fmt(state.baselineGrowth, 1)}%`;
-      $('gini').textContent = fmt(state.currentGini, 2);
-      $('gini-guidance').textContent = 'Centro calibrado: el Gini queda fijado en este valor hasta que inclines el teléfono.';
+      $('gini').textContent = `${fmt(0, 0)}%`;
+      $('gini-guidance').textContent = 'Centro calibrado: desigualdad inicial. Tira el gimbal hacia abajo para aumentar el crecimiento y la igualdad.';
       setStatus('Centro calibrado; enviando movimientos', 'ok');
-      $('hint').textContent = `Centro: crecimiento ${fmt(state.baselineGrowth, 1)}% y Gini ${fmt(state.currentGini, 2)}. El crecimiento sigue la inclinación; el Gini se acumula y no vuelve al centro.`;
-      sendReading(0, 0, state.baselineGrowth, state.currentGini);
+      $('hint').textContent = `Centro calibrado: crecimiento ${fmt(state.baselineGrowth, 1)}%. Tira el marco hacia abajo para aumentarlo.`;
+      sendReading(0, 0, state.baselineGrowth, virtualGiniFromGrowth(state.baselineGrowth));
     }
 
     async function stopSensor() {
